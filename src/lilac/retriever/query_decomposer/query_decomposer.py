@@ -37,6 +37,7 @@ Guidelines
 6. **Remove redundancy** Merge duplicate or paraphrased sub-queries before you output.  
 7. **Ordering for dependencies** If the answer to one sub-query is needed for another, place the prerequisite first.  
 8. **Output format** Return **only** a JSON array of strings — no keys, explanations, or extra text.
+9. **Semantic completeness** Every sub-query must be a self-contained, grammatically coherent phrase or clause that can stand alone as a meaningful search intent, avoiding isolated fragment phrases like modifiers or metadata.
 
 Question: {question}
 

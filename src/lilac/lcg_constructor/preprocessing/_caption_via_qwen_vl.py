@@ -42,7 +42,7 @@ def _visible_gpu_ids() -> List[int]:
 
 def _worker(
     gpu_id: int,
-    slice_: List[Tuple[str | List[str], str]],
+    slice_: List[Tuple[str | List[str], str, str]],
     prompt: str,
     max_tokens: int,
     show_progress: bool,
@@ -60,13 +60,13 @@ def _worker(
     
     # Ép PyTorch không lưu Gradient (Tiết kiệm VRAM tối đa)
     with torch.no_grad():
-        for i, (img_path, out_path) in enumerate(iterator):
+        for i, (img_path, out_path, item_prompt) in enumerate(iterator):
             out_p = Path(out_path)
             if out_p.exists():
                 continue
             try:
                 images = img_path if isinstance(img_path, list) else [img_path]
-                obj = {"text": prompt, "images": [str(path) for path in images]}
+                obj = {"text": item_prompt, "images": [str(path) for path in images]}
                 result = model.infer([obj], batch_size=1, max_tokens=max_tokens)
                 text = (result[0] if result else "").strip()
                 out_p.parent.mkdir(parents=True, exist_ok=True)
@@ -93,6 +93,7 @@ def caption_images(
     max_tokens: int = 2048,
     num_gpus: int | None = None,
     show_progress: bool = True,
+    prompts: List[str] | None = None,
 ) -> None:
     """Caption a list of images with Qwen2.5-VL, sharded across visible GPUs.
 
@@ -111,9 +112,12 @@ def caption_images(
     """
     assert len(image_paths) == len(output_paths), "parallel lists required"
 
+    if prompts is not None and len(prompts) != len(image_paths):
+        raise ValueError("prompts must be parallel to image_paths")
+    prompt_values = prompts or [prompt] * len(image_paths)
     todo = [
-        (img, out)
-        for img, out in zip(image_paths, output_paths)
+        (img, out, item_prompt)
+        for img, out, item_prompt in zip(image_paths, output_paths, prompt_values)
         if not Path(out).exists()
     ]
     if not todo:

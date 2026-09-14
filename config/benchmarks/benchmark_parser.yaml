@@ -16,4 +16,4 @@ SlideVQA:
   page:       "${REPO_ROOT}/datasets/SlideVQA/QAs_dev.json"
 InfoVQA:
   component:  null
-  page:       "${REPO_ROOT}/datasets/InfoVQA/QAs_val.json"
+  page:       "${REPO_ROOT}/datasets/InfoVQA/QAs_test.json"

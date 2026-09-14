@@ -6,6 +6,7 @@ import faiss
 import torch
 import pickle
 import logging
+import math
 
 import argparse
 from tqdm import tqdm
@@ -218,6 +219,10 @@ class Retriever:
             (os.path.join(emb_dir, self._run_config["low_level_embeddings"]["image"] + ".pt"),
              os.path.join(emb_dir, self._run_config["low_level_embeddings"]["image"] + ".json")),
         ]
+        facts_pt = os.path.join(emb_dir, "tile_fact.pt")
+        facts_json = os.path.join(emb_dir, "tile_fact.json")
+        if os.path.exists(facts_pt) and os.path.exists(facts_json):
+            low_level_pairs.append((facts_pt, facts_json))
         # filter by existence
         existing_low_level_pairs = []
         for pair in low_level_pairs:
@@ -244,10 +249,36 @@ class Retriever:
     
     def initiate_graph(self):
         if self._run_function_mode != "single_knn":
-            self._graph_path = artifact_subpath(self._metadata_config, self._target_dataset, "component_dirname", "graph.pickle")
-            os.makedirs(artifact_subpath(self._metadata_config, self._target_dataset, "component_dirname"), exist_ok=True)
-            tile_manifest = os.path.join(self._benchmark_dir, "tiles", "manifest.json")
-            use_tile_graph = self._target_dataset == "InfoVQA" and os.path.exists(tile_manifest)
+            component_dir = artifact_subpath(
+                self._metadata_config,
+                self._target_dataset,
+                "component_dirname",
+            )
+            self._graph_path = os.path.join(component_dir, "graph.pickle")
+            os.makedirs(component_dir, exist_ok=True)
+
+            # The tile manifest is the source of truth for the three-level
+            # InfoVQA graph; do not fall back to parse_documents for it.
+            tile_manifest_candidates = (
+                os.path.join(self._benchmark_dir, "tiles", "manifest.json"),
+                os.path.join(REPO_ROOT, "datasets", "InfoVQA", "tiles", "manifest.json"),
+            )
+            tile_manifest = next(
+                (path for path in tile_manifest_candidates if os.path.exists(path)),
+                None,
+            )
+
+            use_tile_graph = (
+                self._target_dataset == "InfoVQA"
+                and tile_manifest is not None
+            )
+            facts_directory = os.path.join(
+                REPO_ROOT,
+                "artifacts",
+                self._target_dataset,
+                "facts_each_tile",
+            )
+
             if check_file_exists(self._graph_path) and not use_tile_graph:
                 print("[Retriever] Loading existing graph …")
                 with open(self._graph_path, "rb") as f:
@@ -261,7 +292,29 @@ class Retriever:
                     summaries_directory = self._summaries_dir
                 )
                 if use_tile_graph:
-                    self.graph.load_tile_manifest(tile_manifest)
+                    self.graph.load_tile_manifest(tile_manifest, facts_directory)
+                    documents_with_facts = 0
+                    for filename, edges in self.graph.intra_document_edges.items():
+                        tile_ids = [
+                            component_id
+                            for component_id in edges
+                            if component_id != "i_1"
+                            and "_t" in component_id
+                            and "_f" not in component_id
+                        ]
+                        if edges.get("i_1") and any(
+                            edges.get(tile_id) for tile_id in tile_ids
+                        ):
+                            documents_with_facts += 1
+                    if not documents_with_facts:
+                        raise ValueError(
+                            "Tile manifest graph did not produce the expected "
+                            "i_1 -> tile -> fact hierarchy."
+                        )
+                    print(
+                        "[Retriever] Loaded three-level graph: "
+                        "original image -> tiles -> facts"
+                    )
                 else:
                     self.graph.parse_documents()
                 with open(self._graph_path, "wb") as f:
@@ -310,16 +363,132 @@ class Retriever:
                 self._beam_width = self._run_config["parameters"]["beam_width"]
                 self._num_iterations = self._run_config["parameters"]["num_iterations"]
                 self.retrieve_iterative_late_interaction(qid, question_embedding, subquery_embeddings)
+            elif self._run_function_mode == "mcts":
+                self.retrieve_mcts(qid, question_embedding, subquery_embeddings)
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
             yaml.dump(self._run_config, f)
 
         return
-    
-    
-    
-    
+
+    @staticmethod
+    def _is_tile_target(target):
+        return (
+            isinstance(target, (list, tuple))
+            and len(target) == 2
+            and "_t" in str(target[1])
+            and "_f" not in str(target[1])
+        )
+
+    @staticmethod
+    def _is_fact_target(target):
+        return (
+            isinstance(target, (list, tuple))
+            and len(target) == 2
+            and "_f" in str(target[1])
+        )
+
+    def _subquery_scores_for_target(self, indexer, target, subquery_embeddings):
+        """Return max-over-subqueries reward and each subquery's score."""
+        row = indexer.get_vector_idx_for_target(target)
+        vector = indexer.get_embeddings()[row].to(torch.float32)
+        scores = {}
+        for index, subquery in enumerate(subquery_embeddings, start=1):
+            value = torch.nn.functional.cosine_similarity(
+                vector.reshape(1, -1),
+                subquery.to(vector.device, dtype=torch.float32).reshape(1, -1),
+            ).item()
+            scores[str(index)] = float(value)
+        return (max(scores.values()) if scores else 0.0), scores
+
+    def retrieve_mcts(
+        self,
+        qid: str,
+        query_vec: torch.Tensor,
+        query_vec_list: List[torch.Tensor],
+        k_ret: int | None = None,
+    ):
+        """Retrieve tile→fact paths with a lightweight Monte Carlo tree search.
+
+        Tiles are seeded by the query embedding. Each simulation chooses one
+        unvisited fact using UCT; a fact reward is the maximum cosine score over
+        all supplied subquery vectors.
+        """
+        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 100))
+        simulations = int(self._run_config["parameters"].get("mcts_simulations", 64))
+        started = time.perf_counter()
+        tile_results = self.level_to_indexer["low"].knn_search(query_vec, top_k=2048)
+        top_tiles = []
+        seen_tiles = set()
+        for result in tile_results:
+            target = tuple(result["target"])
+            if self._is_tile_target(target) and target not in seen_tiles:
+                seen_tiles.add(target)
+                top_tiles.append(target)
+                if len(top_tiles) == 5:
+                    break
+        tile_done = time.perf_counter()
+
+        paths = []
+        for tile in top_tiles:
+            children = [
+                tuple(child.get_gcid())
+                for child in self.graph.intra_document_edges.get(tile[0], {}).get(
+                    tile[1], []
+                )
+                if self._is_fact_target(child.get_gcid())
+            ]
+            if not children:
+                continue
+            visits = {fact: 0 for fact in children}
+            totals = {fact: 0.0 for fact in children}
+            best = {}
+            for _ in range(max(simulations, len(children))):
+                unvisited = [fact for fact in children if visits[fact] == 0]
+                if unvisited:
+                    fact = unvisited[0]
+                else:
+                    fact = max(
+                        children,
+                        key=lambda item: totals[item] / visits[item]
+                        + math.sqrt(2.0 * math.log(sum(visits.values()) + 1) / visits[item]),
+                    )
+                reward, specific = self._subquery_scores_for_target(
+                    self.level_to_indexer["low"], fact, query_vec_list
+                )
+                visits[fact] += 1
+                totals[fact] += reward
+                best[fact] = {
+                    "score": reward,
+                    "specific_scores": {
+                        f"{qid}___{key}": value for key, value in specific.items()
+                    },
+                }
+            for fact, data in best.items():
+                paths.append({
+                    "nodes": [list(tile), list(fact)],
+                    "edges": [[tile[1], fact[1]]],
+                    "score": data["score"],
+                    "specific_scores": data["specific_scores"],
+                    "type": "path",
+                })
+        paths.sort(key=lambda item: item["score"], reverse=True)
+        paths = paths[:k_ret]
+        finished = time.perf_counter()
+        result = {
+            "qid": qid,
+            "retrieved_paths": paths,
+            "time": {
+                "retrieval_time(ms)": (finished - started) * 1000,
+                "find_top_tiles(ms)": (tile_done - started) * 1000,
+                "monte_carlo_tree_search(ms)": (finished - tile_done) * 1000,
+            },
+        }
+        append_to_jsonl_file(
+            result, os.path.join(self._output_dir, self._run_name + ".jsonl")
+        )
+        return result
     
     
     def retrieve_iterative_late_interaction(

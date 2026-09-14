@@ -3,10 +3,11 @@
 
 run_name: default
 
-run_mode: iterative_late_interaction
+# run_mode: iterative_late_interaction
 # run_mode: late_interaction
 # run_mode: single_knn
 # run_mode: single_topdown
+run_mode: mcts
 
 # target_dataset: InfoVQA
 # target_dataset: SlideVQA
@@ -27,6 +28,7 @@ parameters:
   target_level: top
 
   top_k: 100
+  mcts_simulations: 64
 
 force_overwrite: false
 

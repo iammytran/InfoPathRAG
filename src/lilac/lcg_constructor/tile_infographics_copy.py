@@ -42,14 +42,21 @@ FACT_PROMPT = (
     '{"facts":[{"text":"one concise factual statement","evidence":"quoted OCR text"}]}. '
     "Do not invent facts and do not include markdown.\nOCR items:\n"
 )
-BOUNDARY_PROMPT = (
-    "Inspect the tile image and the original infographic. The tile location is "
-    "provided in the prompt. Determine whether any word, text line, table, row, "
-    "column, chart, or visual block is cut by the tile boundary. Return JSON only: "
-    '{"is_cut":true|false,"sides":["left","right","top","bottom"],'
-    '"reason":"short explanation"}. sides must be empty when is_cut is false. '
-    "Do not mark normal whitespace as a cut."
-)
+
+def get_boundary_prompt(tile_location: str) -> str:
+    """Tạo boundary prompt hoàn chỉnh dựa trên vị trí tile được truyền vào."""
+    return (
+        f"You are provided with two images: a cropped tile image and its original full infographic. "
+        f"The tile location is {tile_location}. "
+        "Carefully analyze both images to determine whether any important visual elements—such as words, text lines, "
+        "tables, rows, columns, charts, or visual blocks—are cut off or truncated by the tile boundary "
+        "in a way that disrupts their semantic meaning and requires merging with an adjacent tile. "
+        "Return JSON only in the following exact format: "
+        '{"is_cut": true|false, "sides": ["left", "right", "top", "bottom"], "reason": "short explanation"}. '
+        "Rules: 'sides' must be an empty list [] when is_cut is false. Do not mark normal whitespace or background margins as a cut. "
+        "Note: If the tile is located in column 0 (the leftmost column of the layout), it cannot be cut on the left side."
+    )
+
 OCR_PROMPT = (
     "Extract every readable text item from this infographic tile. Return JSON only "
     'as {"ocr":["text item 1","text item 2"]}. Preserve numbers, units, labels, '
@@ -236,7 +243,10 @@ def caption_tiles(manifest: dict[str, Any], output_dir: Path, num_gpus: int | No
 def _json_from_qwen(path: Path, default: dict[str, Any]) -> dict[str, Any]:
     if not path.exists():
         return default
-    raw = path.read_text(encoding="utf-8").replace("```json", "").replace("```", "").strip()
+    raw = path.read_text(encoding="utf-8").strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", raw, flags=re.IGNORECASE | re.DOTALL)
+    if fenced:
+        raw = fenced.group(1).strip()
     try:
         value = json.loads(raw)
     except json.JSONDecodeError:
@@ -247,10 +257,9 @@ def _json_from_qwen(path: Path, default: dict[str, Any]) -> dict[str, Any]:
 def _tile_location(tile: dict[str, Any]) -> str:
     return (
         f"row {tile['row']}, column {tile['column']} of the original; "
-        f"pixel rectangle x={tile['x']}, y={tile['y']}, "
-        f"width={tile['width']}, height={tile['height']}"
+        # f"pixel rectangle x={tile['x']}, y={tile['y']}, "
+        # f"width={tile['width']}, height={tile['height']}"
     )
-
 
 def detect_tile_boundaries(
     manifest: dict[str, Any],
@@ -263,10 +272,7 @@ def detect_tile_boundaries(
     for info in manifest["infographics"]:
         for tile in info["tiles"]:
             out = output_dir / f"{Path(tile['filename']).stem}.json"
-            prompt = (
-                f"This tile is {_tile_location(tile)}. "
-                + BOUNDARY_PROMPT
-            )
+            prompt = get_boundary_prompt(_tile_location(tile))
             jobs.append((tile, info["original"]["path"], out, prompt))
     caption_images(
         [[tile["path"], original] for tile, original, _, _ in jobs],
@@ -284,7 +290,12 @@ def detect_tile_boundaries(
             "reason": str(result.get("reason", "")),
         }
         tile["boundary"] = boundary
-        out.write_text(json.dumps(boundary, indent=2), encoding="utf-8")
+        with open(out, 'w', encoding="utf-8") as file:
+            json.dump(boundary, file, indent=4, ensure_ascii=False)
+        # out.write_text(
+        #      + "\n",
+        #     encoding="utf-8",
+        # )
     (output_dir / "boundary_manifest.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8"
     )
@@ -591,35 +602,46 @@ def main() -> None:
     parser.add_argument("--skip-embed", action="store_true")
     args = parser.parse_args()
 
-    manifest = prepare_tiled_inputs(
-        args.input_dir,
-        args.output_dir,
-        args.output_dir / "manifest.json",
-        tile_width=args.tile_width,
-        tile_height=args.tile_height,
-        overlap=args.overlap,
-        max_tiles=args.max_tiles,
-        estimated_components_path=args.estimated_components,
-    )
+    manifest = {}
+    manifest_file = "/workspace/LILaC/datasets/InfoVQA/tiles/summaries/manifest.json"
+    with open(manifest_file, encoding="utf-8") as file:
+        manifest = json.load(file)
+    # print("Running prepare_tiled_inputs...", flush=True)
+    # manifest = prepare_tiled_inputs(
+    #     args.input_dir,
+    #     args.output_dir,
+    #     args.output_dir / "manifest.json",
+    #     tile_width=args.tile_width,
+    #     tile_height=args.tile_height,
+    #     overlap=args.overlap,
+    #     max_tiles=args.max_tiles,
+    #     estimated_components_path=args.estimated_components,
+    # )
 
     if not args.skip_qwen:
+        print("Running detect_tile_boundaries...", flush=True)
         detect_tile_boundaries(manifest, args.process_tiles_dir, args.num_gpus)
+        print("Running merge_processed_tiles...", flush=True)
         processed_manifest = merge_processed_tiles(
             manifest, args.tiles_after_process_dir, args.process_tiles_dir
         )
+        print("Running extract_processed_ocr...", flush=True)
         extract_processed_ocr(
             processed_manifest, args.ocr_dir, args.num_gpus
         )
+        print("Running extract_facts_each_tile...", flush=True)
         extract_facts_each_tile(
             processed_manifest, args.facts_dir, args.num_gpus
         )
         manifest = processed_manifest
 
-    artifacts_folder = args.process_tiles_dir.parent
-    top_path, low_path, facts_path = serialize_tiles(manifest, artifacts_folder)
+    # artifacts_folder = args.process_tiles_dir.parent
+    # print("Running serialize_tiles...", flush=True)
+    # top_path, low_path, facts_path = serialize_tiles(manifest, artifacts_folder)
 
-    if not args.skip_embed:
-        embed_serializations(top_path, low_path, facts_path, artifacts_folder, args.num_gpus)
+    # if not args.skip_embed:
+    #     print("Running embed_serializations...", flush=True)
+    #     embed_serializations(top_path, low_path, facts_path, artifacts_folder, args.num_gpus)
 
 
 if __name__ == "__main__":

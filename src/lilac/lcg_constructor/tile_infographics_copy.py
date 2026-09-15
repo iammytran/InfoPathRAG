@@ -603,7 +603,7 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = {}
-    manifest_file = "/workspace/LILaC/datasets/InfoVQA/tiles/summaries/manifest.json"
+    manifest_file = "/workspace/LILaC/datasets/InfoVQA/tiles/manifest.json"
     with open(manifest_file, encoding="utf-8") as file:
         manifest = json.load(file)
     # print("Running prepare_tiled_inputs...", flush=True)

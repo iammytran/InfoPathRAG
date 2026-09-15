@@ -46,15 +46,15 @@ FACT_PROMPT = (
 def get_boundary_prompt(tile_location: str) -> str:
     """Tạo boundary prompt hoàn chỉnh dựa trên vị trí tile được truyền vào."""
     return (
-        f"You are provided with two images: a cropped tile image and its original full infographic. "
-        f"The tile location is {tile_location}. "
-        "Carefully analyze both images to determine whether any important visual elements—such as words, text lines, "
-        "tables, rows, columns, charts, or visual blocks—are cut off or truncated by the tile boundary "
-        "in a way that disrupts their semantic meaning and requires merging with an adjacent tile. "
-        "Return JSON only in the following exact format: "
-        '{"is_cut": true|false, "sides": ["left", "right", "top", "bottom"], "reason": "short explanation"}. '
-        "Rules: 'sides' must be an empty list [] when is_cut is false. Do not mark normal whitespace or background margins as a cut. "
-        "Note: If the tile is located in column 0 (the leftmost column of the layout), it cannot be cut on the left side."
+        f"Analyze this infographic tile (Location: {tile_location}) to determine if any text lines, words, "
+        "table rows, or chart lines are cut off or abruptly truncated at its outer borders.\n\n"
+        "Rules:\n"
+        "- Return JSON only: {\"is_cut\": true|false, \"sides\": [\"left\"|\"right\"|\"top\"|\"bottom\"], \"reason\": \"...\"}\n"
+        "- 'sides' must be [] if 'is_cut' is false.\n"
+        "- Column 0 tiles CANNOT be cut on the left.\n"
+        "- IGNORE normal multi-line text wrapping and whitespace/margins.\n"
+        "- CRITICAL: If any words or sentences at the extreme right or left edge look abruptly sliced in half, incomplete, or cut off mid-word (e.g., ending with 'ope...' instead of 'open'), you MUST mark it as cut for that side.\n"
+        "Output JSON:"
     )
 
 OCR_PROMPT = (
@@ -273,15 +273,15 @@ def detect_tile_boundaries(
         for tile in info["tiles"]:
             out = output_dir / f"{Path(tile['filename']).stem}.json"
             prompt = get_boundary_prompt(_tile_location(tile))
-            jobs.append((tile, info["original"]["path"], out, prompt))
+            jobs.append((tile, out, prompt))
     caption_images(
-        [[tile["path"], original] for tile, original, _, _ in jobs],
-        [str(out) for _, _, out, _ in jobs],
-        prompts=[prompt for _, _, _, prompt in jobs],
+        [tile["path"] for tile, _, _ in jobs],
+        [str(out) for _, out, _ in jobs],
+        prompts=[prompt for _, _, prompt in jobs],
         max_tokens=256,
         num_gpus=num_gpus,
     )
-    for tile, _, out, _ in jobs:
+    for tile, out, _ in jobs:
         result = _json_from_qwen(out, {"is_cut": False, "sides": [], "reason": ""})
         sides = result.get("sides", [])
         boundary = {
@@ -597,7 +597,7 @@ def main() -> None:
     parser.add_argument("--ocr-dir", type=Path, default=DEFAULT_OCR_EACH_TILE)
     parser.add_argument("--overlap", type=int, default=0)
     parser.add_argument("--max-tiles", type=int, default=4)
-    parser.add_argument("--num-gpus", type=int, default=1)
+    parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--skip-qwen", action="store_true")
     parser.add_argument("--skip-embed", action="store_true")
     args = parser.parse_args()
@@ -625,15 +625,15 @@ def main() -> None:
         processed_manifest = merge_processed_tiles(
             manifest, args.tiles_after_process_dir, args.process_tiles_dir
         )
-        print("Running extract_processed_ocr...", flush=True)
-        extract_processed_ocr(
-            processed_manifest, args.ocr_dir, args.num_gpus
-        )
-        print("Running extract_facts_each_tile...", flush=True)
-        extract_facts_each_tile(
-            processed_manifest, args.facts_dir, args.num_gpus
-        )
-        manifest = processed_manifest
+        # print("Running extract_processed_ocr...", flush=True)
+        # extract_processed_ocr(
+        #     processed_manifest, args.ocr_dir, args.num_gpus
+        # )
+        # print("Running extract_facts_each_tile...", flush=True)
+        # extract_facts_each_tile(
+        #     processed_manifest, args.facts_dir, args.num_gpus
+        # )
+        # manifest = processed_manifest
 
     # artifacts_folder = args.process_tiles_dir.parent
     # print("Running serialize_tiles...", flush=True)

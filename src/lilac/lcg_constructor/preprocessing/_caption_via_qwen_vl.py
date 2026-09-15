@@ -67,7 +67,7 @@ def _worker(
             try:
                 images = img_path if isinstance(img_path, list) else [img_path]
                 obj = {"text": item_prompt, "images": [str(path) for path in images]}
-                result = model.infer([obj], batch_size=1, max_tokens=max_tokens)
+                result = model.infer([obj], batch_size=4, max_tokens=max_tokens)
                 text = (result[0] if result else "").strip()
                 out_p.parent.mkdir(parents=True, exist_ok=True)
                 tmp_path = out_p.with_suffix(out_p.suffix + ".tmp")

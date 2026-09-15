@@ -35,12 +35,20 @@ TILE_PROMPT = (
 )
 VALID_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 FACT_PROMPT = (
-    "You are extracting verifiable facts from one infographic tile. The first "
-    "image is the tile and the second is the original infographic. Use the OCR "
-    "items below as primary evidence, correct obvious OCR fragmentation only "
-    "when the images support it, and return JSON only in the form "
-    '{"facts":[{"text":"one concise factual statement","evidence":"quoted OCR text"}]}. '
-    "Do not invent facts and do not include markdown.\nOCR items:\n"
+    "You are an expert at extracting and synthesizing verifiable facts from infographic tiles. "
+    "The first image is the tile and the second is the original infographic. "
+    "Use the OCR items below as primary evidence.\n\n"
+    "CRITICAL INSTRUCTIONS:\n"
+    "1. Do NOT just blindly copy or repeat fragmented OCR items into the 'text' field. "
+    "Instead, synthesize and rewrite the fragmented pieces into a **complete, concise, and coherent factual sentence**.\n"
+    "2. In the 'evidence' field, quote the exact original OCR text used as your source.\n"
+    "3. Do not invent facts, do not extrapolate beyond what the image shows, and do not include markdown.\n\n"
+    "Example Output Format:\n"
+    '{"facts":[\n'
+    '  {"text": "There were 907K total spam messages related to COVID-19.", "evidence": "907K Total spam messages related to COVID-19"},\n'
+    '  {"text": "The United States is the top location for spam and malware detections.", "evidence": "United States Top location for spam and malware detections"}\n'
+    "]}\n\n"
+    "OCR items:\n"
 )
 
 def get_boundary_prompt(tile_location: str) -> str:
@@ -63,12 +71,12 @@ OCR_PROMPT = (
     "and table cell text. Do not add explanations."
 )
 FACTS_FROM_OCR_PROMPT = (
-    "Create exactly one concise factual sentence for each OCR item below. Every "
-    "sentence must contain the corresponding OCR text verbatim or with only "
-    "trivial punctuation normalization, and must be supported by the tile and "
-    "original infographic. Return JSON only as "
-    '{"facts":[{"ocr":"...","fact":"..."}]}. Keep the same order and count as '
-    "the OCR items. Do not invent information.\nOCR items:\n"
+    "For each OCR item below, generate a clear, natural, and standalone factual sentence "
+    "that explains or expands upon its meaning based on the tile and original infographic. "
+    "Do not just copy the OCR text verbatim; instead, rewrite and contextualize it into a proper sentence. "
+    "Return JSON only in the form "
+    '{"facts":[{"ocr":"<original_ocr_item>","fact":"<natural_factual_sentence>"}]}. '
+    "Keep the exact same order and count as the OCR items. Do not invent information.\nOCR items:\n"
 )
 
 

@@ -244,6 +244,7 @@ def _json_from_qwen(path: Path, default: dict[str, Any]) -> dict[str, Any]:
     if not path.exists():
         return default
     raw = path.read_text(encoding="utf-8").strip()
+    print(f"raw: {raw}")
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", raw, flags=re.IGNORECASE | re.DOTALL)
     if fenced:
         raw = fenced.group(1).strip()
@@ -251,7 +252,8 @@ def _json_from_qwen(path: Path, default: dict[str, Any]) -> dict[str, Any]:
         value = json.loads(raw)
     except json.JSONDecodeError:
         return default
-    return value if isinstance(value, dict) else default
+    print(f"value:{value}")
+    return value
 
 
 def _tile_location(tile: dict[str, Any]) -> str:
@@ -391,7 +393,7 @@ def extract_processed_ocr(
     )
     for tile, _, out in jobs:
         result = _json_from_qwen(out, {"ocr": []})
-        ocr = [str(item).strip() for item in result.get("ocr", [])
+        ocr = [str(item).strip() for item in result
                if str(item).strip()]
         tile["ocr"] = ocr
         out.write_text(json.dumps({"ocr": ocr}, indent=2), encoding="utf-8")
@@ -423,7 +425,7 @@ def extract_facts_each_tile(
     )
     for tile, _, out, _ in jobs:
         result = _json_from_qwen(out, {"facts": []})
-        facts = result.get("facts", [])
+        facts = [item["fact"] for item in result]
         tile["facts"] = facts if isinstance(facts, list) else []
         out.write_text(json.dumps({"facts": tile["facts"]}, indent=2), encoding="utf-8")
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -602,10 +604,10 @@ def main() -> None:
     parser.add_argument("--skip-embed", action="store_true")
     args = parser.parse_args()
 
-    manifest = {}
-    manifest_file = "/workspace/LILaC/datasets/InfoVQA/tiles/manifest.json"
-    with open(manifest_file, encoding="utf-8") as file:
-        manifest = json.load(file)
+    # manifest = {}
+    # manifest_file = "/workspace/LILaC/datasets/InfoVQA/tiles/manifest.json"
+    # with open(manifest_file, encoding="utf-8") as file:
+    #     manifest = json.load(file)
     # print("Running prepare_tiled_inputs...", flush=True)
     # manifest = prepare_tiled_inputs(
     #     args.input_dir,
@@ -619,20 +621,24 @@ def main() -> None:
     # )
 
     if not args.skip_qwen:
-        print("Running detect_tile_boundaries...", flush=True)
-        detect_tile_boundaries(manifest, args.process_tiles_dir, args.num_gpus)
-        print("Running merge_processed_tiles...", flush=True)
-        processed_manifest = merge_processed_tiles(
-            manifest, args.tiles_after_process_dir, args.process_tiles_dir
-        )
+        # print("Running detect_tile_boundaries...", flush=True)
+        # detect_tile_boundaries(manifest, args.process_tiles_dir, args.num_gpus)
+        # print("Running merge_processed_tiles...", flush=True)
+        # processed_manifest = merge_processed_tiles(
+        #     manifest, args.tiles_after_process_dir, args.process_tiles_dir
+        # )
+        processed_manifest = {}
+        processed_manifest_file = "/workspace/LILaC/artifacts/InfoVQA/ocr_each_tile/manifest.json"
+        with open(processed_manifest_file, 'r') as file:
+            processed_manifest = json.load(file)
         # print("Running extract_processed_ocr...", flush=True)
         # extract_processed_ocr(
         #     processed_manifest, args.ocr_dir, args.num_gpus
         # )
-        # print("Running extract_facts_each_tile...", flush=True)
-        # extract_facts_each_tile(
-        #     processed_manifest, args.facts_dir, args.num_gpus
-        # )
+        print("Running extract_facts_each_tile...", flush=True)
+        extract_facts_each_tile(
+            processed_manifest, args.facts_dir, args.num_gpus
+        )
         # manifest = processed_manifest
 
     # artifacts_folder = args.process_tiles_dir.parent

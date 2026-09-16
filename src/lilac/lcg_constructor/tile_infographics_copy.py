@@ -248,20 +248,51 @@ def caption_tiles(manifest: dict[str, Any], output_dir: Path, num_gpus: int | No
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
-def _json_from_qwen(path: Path, default: dict[str, Any]) -> dict[str, Any]:
-    if not path.exists():
-        return default
-    raw = path.read_text(encoding="utf-8").strip()
-    print(f"raw: {raw}")
-    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", raw, flags=re.IGNORECASE | re.DOTALL)
+def _repair_json_text(raw: str) -> str:
+    """Recover common Qwen JSON mistakes, such as truncated closing brackets."""
+    raw = raw.strip()
+    fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", raw, flags=re.IGNORECASE | re.DOTALL)
     if fenced:
         raw = fenced.group(1).strip()
+
+    start = next((index for index, char in enumerate(raw) if char in "[{"), None)
+    if start is None:
+        return raw
+    raw = raw[start:]
+
+    stack: list[str] = []
+    in_string = False
+    escaped = False
+    for char in raw:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "[{":
+            stack.append("]" if char == "[" else "}")
+        elif char in "]}":
+            if stack and char == stack[-1]:
+                stack.pop()
+
+    # A response may end with a comma immediately before truncation.
+    raw = re.sub(r",\s*$", "", raw)
+    return raw + "".join(reversed(stack))
+
+
+def _json_from_qwen(path: Path, default: dict[str, Any]) -> dict[str, Any] | list[Any]:
+    if not path.exists():
+        return default
+    raw = _repair_json_text(path.read_text(encoding="utf-8"))
     try:
         value = json.loads(raw)
     except json.JSONDecodeError:
         return default
-    print(f"value:{value}")
-    return value
+    return value if isinstance(value, (dict, list)) else default
 
 
 def _tile_location(tile: dict[str, Any]) -> str:
@@ -401,8 +432,9 @@ def extract_processed_ocr(
     )
     for tile, _, out in jobs:
         result = _json_from_qwen(out, {"ocr": []})
-        ocr = [str(item).strip() for item in result
-               if str(item).strip()]
+        # ocr_items = result.get("ocr", []) if isinstance(result, dict) else result
+        # ocr = [str(item).strip() for item in ocr_items
+        #        if str(item).strip()] if isinstance(ocr_items, list) else []
         tile["ocr"] = ocr
         out.write_text(json.dumps({"ocr": ocr}, indent=2), encoding="utf-8")
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -415,6 +447,8 @@ def extract_facts_each_tile(
 ) -> None:
     """Generate one fact per OCR item and save one JSON file per tile."""
     output_dir.mkdir(parents=True, exist_ok=True)
+    raw_output_dir = output_dir / "raw"
+    raw_output_dir.mkdir(parents=True, exist_ok=True)
     jobs = []
     for info in manifest["infographics"]:
         for tile in info["tiles"]:
@@ -422,20 +456,39 @@ def extract_facts_each_tile(
             prompt = FACTS_FROM_OCR_PROMPT + "\n".join(
                 f"{index + 1}. {text}" for index, text in enumerate(ocr_items)
             )
+            raw_out = raw_output_dir / f"{Path(tile['filename']).stem}.json"
             out = output_dir / f"{Path(tile['filename']).stem}.json"
-            jobs.append((tile, info["original"]["path"], out, prompt))
+            jobs.append((tile, info["original"]["path"], raw_out, out, prompt))
     caption_images(
-        [[tile["path"], original] for tile, original, _, _ in jobs],
-        [str(out) for _, _, out, _ in jobs],
-        prompts=[prompt for _, _, _, prompt in jobs],
+        [[tile["path"], original] for tile, original, _, _, _ in jobs],
+        [str(raw_out) for _, _, raw_out, _, _ in jobs],
+        prompts=[prompt for _, _, _, _, prompt in jobs],
         max_tokens=1024,
         num_gpus=num_gpus,
     )
-    for tile, _, out, _ in jobs:
-        result = _json_from_qwen(out, {"facts": []})
-        facts = [item["fact"] for item in result]
-        tile["facts"] = facts if isinstance(facts, list) else []
-        out.write_text(json.dumps({"facts": tile["facts"]}, indent=2), encoding="utf-8")
+    for tile, _, raw_out, out, _ in jobs:
+        result = _json_from_qwen(raw_out, {"facts": []})
+        if isinstance(result, dict):
+            items = result.get("facts", [])
+        else:
+            # Qwen sometimes omits the requested {"facts": ...} wrapper.
+            items = result
+        facts = []
+        valid_items = []
+        if isinstance(items, list):
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                fact = str(item.get("fact", "")).strip()
+                if not fact:
+                    continue
+                facts.append(fact)
+                valid_items.append({
+                    "ocr": str(item.get("ocr", "")).strip(),
+                    "fact": fact,
+                })
+        tile["facts"] = facts
+        out.write_text(json.dumps(valid_items, indent=2, ensure_ascii=False), encoding="utf-8")
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
@@ -636,7 +689,7 @@ def main() -> None:
         #     manifest, args.tiles_after_process_dir, args.process_tiles_dir
         # )
         processed_manifest = {}
-        processed_manifest_file = "/workspace/LILaC/artifacts/InfoVQA/ocr_each_tile/manifest.json"
+        processed_manifest_file = "/workspace/LILaC/artifacts/InfoVQA/ocr_each_tile/manifest_test.json"
         with open(processed_manifest_file, 'r') as file:
             processed_manifest = json.load(file)
         # print("Running extract_processed_ocr...", flush=True)

@@ -7,6 +7,7 @@ run_name: default
 # run_mode: late_interaction
 # run_mode: single_knn
 # run_mode: single_topdown
+# run_mode: tree_traversal
 run_mode: mcts
 
 # target_dataset: InfoVQA
@@ -29,6 +30,7 @@ parameters:
 
   top_k: 100
   mcts_simulations: 64
+  tree_traversal_top_k: 100
 
 force_overwrite: false
 

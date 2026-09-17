@@ -184,6 +184,7 @@ class Retriever:
         self.level_to_indexer = {
             "top": Indexer(),
             "low": Indexer(),
+            "fact": Indexer(),
         }
 
         self._target_embedder = self._run_config["embedding_model"]
@@ -223,6 +224,11 @@ class Retriever:
         facts_json = os.path.join(emb_dir, "tile_fact.json")
         if os.path.exists(facts_pt) and os.path.exists(facts_json):
             low_level_pairs.append((facts_pt, facts_json))
+        fact_pairs = (
+            [(facts_pt, facts_json)]
+            if os.path.exists(facts_pt) and os.path.exists(facts_json)
+            else []
+        )
         # filter by existence
         existing_low_level_pairs = []
         for pair in low_level_pairs:
@@ -235,6 +241,9 @@ class Retriever:
         self.level_to_indexer["low"].load_embeddings(low_level_pairs, show_progress = True)
         gpu_num = self._run_config["low_level_embeddings"].get("gpu_num", -1)
         self.level_to_indexer["low"].create_index(gpu_id = gpu_num)
+        if fact_pairs:
+            self.level_to_indexer["fact"].load_embeddings(fact_pairs, show_progress=True)
+            self.level_to_indexer["fact"].create_index(gpu_id=gpu_num)
 
         self._target_level = self._run_config["parameters"]["target_level"]
         if self._target_level == "both":
@@ -365,6 +374,8 @@ class Retriever:
                 self.retrieve_iterative_late_interaction(qid, question_embedding, subquery_embeddings)
             elif self._run_function_mode == "mcts":
                 self.retrieve_mcts(qid, question_embedding, subquery_embeddings)
+            elif self._run_function_mode == "tree_traversal":
+                self.retrieve_tree_traversal(qid, question_embedding)
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
@@ -483,6 +494,176 @@ class Retriever:
                 "retrieval_time(ms)": (finished - started) * 1000,
                 "find_top_tiles(ms)": (tile_done - started) * 1000,
                 "monte_carlo_tree_search(ms)": (finished - tile_done) * 1000,
+            },
+        }
+        append_to_jsonl_file(
+            result, os.path.join(self._output_dir, self._run_name + ".jsonl")
+        )
+        return result
+
+    @staticmethod
+    def _is_infographic_target(target):
+        return (
+            isinstance(target, (list, tuple))
+            and len(target) == 2
+            and str(target[1]) == "i_1"
+        )
+
+    def retrieve_tree_traversal(
+        self,
+        qid: str,
+        query_vec: torch.Tensor,
+        k_ret: int | None = None,
+    ):
+        """Retrieve by collapsing infographic/tile search, then tree expansion.
+
+        The first stage searches the top-level infographic index and the
+        tile-only portion of the low-level index independently. The resulting
+        nodes are merged and deduplicated. The second stage follows graph
+        edges from those nodes and ranks only their descendant facts.
+        """
+        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 100))
+        started = time.perf_counter()
+        top_k_nodes = int(
+            self._run_config["parameters"].get("tree_traversal_top_k", k_ret)
+        )
+
+        top_results = [
+            result for result in self.level_to_indexer["top"].knn_search(
+                query_vec,
+                top_k=self.level_to_indexer["top"].get_embeddings().shape[0],
+            )
+            if self._is_infographic_target(result["target"])
+        ]
+        tile_results = [
+            result for result in self.level_to_indexer["low"].knn_search(
+                query_vec,
+                top_k=self.level_to_indexer["low"].get_embeddings().shape[0],
+            )
+            if self._is_tile_target(result["target"])
+        ][:top_k_nodes]
+        top_results = top_results[:top_k_nodes]
+        search_done = time.perf_counter()
+
+        # Collapse the two candidate layers into one ranked candidate list.
+        # The top-k here is applied after combining infographic and tile
+        # candidates, as opposed to returning top-k from each layer.
+        ranked_items: dict[tuple[str, str], dict[str, Any]] = {}
+        for result in top_results + tile_results:
+            target = tuple(result["target"])
+            candidate = {
+                "target": target,
+                "score": float(result["score"]),
+                "source": "infographic" if self._is_infographic_target(target) else "tile",
+            }
+            previous = ranked_items.get(target)
+            if previous is None or candidate["score"] > previous["score"]:
+                ranked_items[target] = candidate
+        selected_items = sorted(
+            ranked_items.values(),
+            key=lambda item: item["score"],
+            reverse=True,
+        )[:k_ret]
+
+        fact_index = self.level_to_indexer.get("fact")
+        if fact_index is None or fact_index.get_embeddings() is None:
+            raise RuntimeError(
+                "Tree traversal requires tile_fact embeddings "
+                "(tile_fact.pt and tile_fact.json)."
+            )
+
+        # Build D, the tile frontier used by tree traversal. A selected tile
+        # stays in D; a selected infographic contributes all of its tiles.
+        tile_frontier: dict[
+            tuple[str, str], tuple[tuple[str, str], float]
+        ] = {}
+        for item in selected_items:
+            root_target = tuple(item["target"])
+            filename, component_id = root_target
+            if item["source"] == "tile":
+                tile_ids = [root_target]
+            else:
+                tile_ids = [
+                    tuple(child.get_gcid())
+                    for child in self.graph.intra_document_edges.get(filename, {}).get(
+                        component_id, []
+                    )
+                    if self._is_tile_target(child.get_gcid())
+                ]
+            for tile_id in tile_ids:
+                previous = tile_frontier.get(tile_id)
+                if previous is None or item["score"] > previous[1]:
+                    tile_frontier[tile_id] = (root_target, item["score"])
+
+        candidate_facts: dict[
+            tuple[str, str], tuple[tuple[str, str], tuple[str, str], float]
+        ] = {}
+        for tile_target, (root_target, root_score) in tile_frontier.items():
+            filename, tile_id = tile_target
+            for child in self.graph.intra_document_edges.get(filename, {}).get(
+                tile_id, []
+            ):
+                fact_target = tuple(child.get_gcid())
+                if self._is_fact_target(fact_target):
+                    previous = candidate_facts.get(fact_target)
+                    candidate = (root_target, tile_target, root_score)
+                    if previous is None or root_score > previous[2]:
+                        candidate_facts[fact_target] = candidate
+
+        fact_embeddings = fact_index.get_embeddings().float()
+        query = query_vec.to(fact_embeddings.device, dtype=fact_embeddings.dtype)
+        scored_facts = []
+        for fact_target, (root_target, tile_target, root_score) in candidate_facts.items():
+            try:
+                row = fact_index.get_vector_idx_for_target(fact_target)
+            except KeyError:
+                continue
+            fact_score = float(
+                torch.nn.functional.cosine_similarity(
+                    fact_embeddings[row].reshape(1, -1),
+                    query.reshape(1, -1),
+                ).item()
+            )
+            scored_facts.append({
+                "fact": fact_target,
+                "root": root_target,
+                "tile": tile_target,
+                "root_score": root_score,
+                "score": fact_score,
+            })
+        scored_facts.sort(key=lambda item: item["score"], reverse=True)
+        traversal_done = time.perf_counter()
+
+        paths = []
+        for item in scored_facts[:k_ret]:
+            root_target = item["root"]
+            if root_target[1] == "i_1":
+                nodes = [list(root_target), list(item["tile"]), list(item["fact"])]
+                edges = [
+                    [root_target[1], item["tile"][1]],
+                    [item["tile"][1], item["fact"][1]],
+                ]
+            else:
+                nodes = [list(root_target), list(item["fact"])]
+                edges = [[root_target[1], item["fact"][1]]]
+            paths.append({
+                "nodes": nodes,
+                "edges": edges,
+                "score": item["score"],
+                "specific_scores": {},
+                "type": "path",
+            })
+
+        finished = time.perf_counter()
+        result = {
+            "qid": qid,
+            "retrieved_paths": paths,
+            "num_selected_items": len(selected_items),
+            "num_tiles_in_frontier": len(tile_frontier),
+            "time": {
+                "retrieval_time(ms)": (finished - started) * 1000,
+                "collapsed_node_search(ms)": (search_done - started) * 1000,
+                "tree_traversal(ms)": (traversal_done - search_done) * 1000,
             },
         }
         append_to_jsonl_file(

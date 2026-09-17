@@ -6,10 +6,12 @@ import argparse
 import json
 import math
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from PIL import Image
+import torch
 
 from src.lilac.lcg_constructor.preprocessing._caption_via_qwen_vl import (
     caption_images,
@@ -432,9 +434,9 @@ def extract_processed_ocr(
     )
     for tile, _, out in jobs:
         result = _json_from_qwen(out, {"ocr": []})
-        # ocr_items = result.get("ocr", []) if isinstance(result, dict) else result
-        # ocr = [str(item).strip() for item in ocr_items
-        #        if str(item).strip()] if isinstance(ocr_items, list) else []
+        ocr_items = result.get("ocr", []) if isinstance(result, dict) else result
+        ocr = [str(item).strip() for item in ocr_items
+               if str(item).strip()] if isinstance(ocr_items, list) else []
         tile["ocr"] = ocr
         out.write_text(json.dumps({"ocr": ocr}, indent=2), encoding="utf-8")
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -490,6 +492,116 @@ def extract_facts_each_tile(
         tile["facts"] = facts
         out.write_text(json.dumps(valid_items, indent=2, ensure_ascii=False), encoding="utf-8")
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def cluster_facts_each_tile(
+    facts_dir: Path = DEFAULT_FACTS_EACH_TILE,
+    output_dir: Path | None = None,
+    *,
+    similarity_threshold: float = 0.9,
+    num_gpus: int = 1,
+) -> dict[str, int]:
+    """Embed facts and remove near-duplicate facts independently per tile.
+
+    The first fact in each similarity cluster is retained. Clustering is
+    greedy against retained representatives, so a long chain of moderately
+    similar facts cannot merge unrelated facts transitively.
+    """
+    if not 0.0 <= similarity_threshold <= 1.0:
+        raise ValueError("similarity_threshold must be between 0 and 1")
+    if num_gpus < 1:
+        raise ValueError("num_gpus must be at least 1")
+    if output_dir is None:
+        output_dir = facts_dir.parent / f"{facts_dir.name}_clustered"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    fact_files = sorted(
+        path for path in facts_dir.glob("*.json")
+        if path.name != "manifest.json"
+    )
+    records: list[tuple[Path, list[dict[str, Any]]]] = []
+    corpus: list[dict[str, Any]] = []
+    for path in fact_files:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        items = raw.get("facts", []) if isinstance(raw, dict) else raw
+        if not isinstance(items, list):
+            raise ValueError(f"Expected a fact list in {path}")
+        valid_items = [
+            item for item in items
+            if isinstance(item, dict) and str(item.get("fact", "")).strip()
+        ]
+        records.append((path, valid_items))
+        corpus.extend(
+            {"id": [path.name, str(index)], "target": {"text": item["fact"]}}
+            for index, item in enumerate(valid_items)
+        )
+
+    if not corpus:
+        return {path.name: 0 for path, _ in records}
+
+    with tempfile.TemporaryDirectory(prefix="fact_cluster_") as work_dir:
+        work_path = Path(work_dir)
+        corpus_path = work_path / "facts.json"
+        embedding_path = work_path / "facts.pt"
+        index_path = work_path / "facts.jsonl"
+        corpus_path.write_text(json.dumps(corpus, ensure_ascii=False), encoding="utf-8")
+        encode_one_corpus(
+            embedder_cls=MMEmbed,
+            tmp_prefix="fact_cluster_embed_",
+            corpus_in_filepath=str(corpus_path),
+            out_embeddings_path=str(embedding_path),
+            out_index_path=str(index_path),
+            num_gpus=num_gpus,
+            max_length=4096,
+            batch_size=16,
+        )
+        embeddings = torch.load(embedding_path, map_location="cpu")
+        embeddings = torch.nn.functional.normalize(embeddings.float(), dim=1)
+
+    offset = 0
+    summary: dict[str, int] = {}
+    cluster_metadata: dict[str, list[dict[str, Any]]] = {}
+    for path, items in records:
+        retained: list[dict[str, Any]] = []
+        representatives: list[torch.Tensor] = []
+        clusters: list[dict[str, Any]] = []
+        for index, item in enumerate(items):
+            vector = embeddings[offset + index]
+            if representatives:
+                similarities = torch.stack(
+                    [torch.dot(vector, representative) for representative in representatives]
+                )
+                best_cluster = int(torch.argmax(similarities).item())
+                best_similarity = float(similarities[best_cluster].item())
+            else:
+                best_cluster = -1
+                best_similarity = -1.0
+
+            if best_similarity >= similarity_threshold:
+                clusters[best_cluster]["member_indices"].append(index)
+                clusters[best_cluster]["similarities"].append(best_similarity)
+            else:
+                retained.append(item)
+                representatives.append(vector)
+                clusters.append({
+                    "representative_index": index,
+                    "member_indices": [index],
+                    "similarities": [1.0],
+                })
+        offset += len(items)
+        out_path = output_dir / path.name
+        out_path.write_text(
+            json.dumps(retained, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        cluster_metadata[path.name] = clusters
+        summary[path.name] = len(retained)
+
+    (output_dir / "clusters.json").write_text(
+        json.dumps(cluster_metadata, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return summary
 
 
 def _content_items(path: Path) -> list[str]:
@@ -646,6 +758,157 @@ def embed_serializations(top_path: Path, low_path: Path, facts_path: Path, outpu
         )
 
 
+def serialize_processed_assets(
+    manifest: dict[str, Any],
+    tiles_after_process_dir: Path = DEFAULT_TILES_AFTER_PROCESS,
+    facts_dir: Path = DEFAULT_FACTS_EACH_TILE,
+    output_dir: Path = DEFAULT_TILES_AFTER_PROCESS.parent,
+    *,
+    use_qwen_summaries: bool = False,
+    summaries_dir: Path | None = None,
+    num_gpus: int = 1,
+) -> tuple[Path, Path, Path]:
+    """Serialize processed tiles, originals, and facts for MM-Embed.
+
+    Processed tile images are discovered recursively below
+    ``tiles_after_process_dir``. Fact files are matched by the processed tile
+    stem. When ``use_qwen_summaries`` is enabled, Qwen creates summaries for
+    both originals and processed tiles; otherwise existing summaries are used
+    when available and a location-based text description is emitted.
+    """
+    if not tiles_after_process_dir.is_dir():
+        raise FileNotFoundError(tiles_after_process_dir)
+    if not facts_dir.is_dir():
+        raise FileNotFoundError(facts_dir)
+    if num_gpus < 1:
+        raise ValueError("num_gpus must be at least 1")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    serialization_dir = output_dir / "serializations"
+    serialization_dir.mkdir(parents=True, exist_ok=True)
+    summary_root = summaries_dir or output_dir / "summaries"
+    summary_root.mkdir(parents=True, exist_ok=True)
+
+    image_paths = [
+        path for path in sorted(tiles_after_process_dir.rglob("*"))
+        if path.is_file() and path.suffix.lower() in VALID_IMAGE_EXTS
+    ]
+    if not image_paths:
+        raise ValueError(f"No processed tile images found under {tiles_after_process_dir}")
+
+    tile_by_stem = {
+        path.stem: path
+        for path in image_paths
+    }
+    tile_records: list[tuple[dict[str, Any], dict[str, Any], Path]] = []
+    top_records: list[tuple[str, Path, str]] = []
+    for info in manifest.get("infographics", []):
+        original = info["original"]
+        original_path = Path(original.get("path", original["filename"]))
+        if not original_path.is_file():
+            raise FileNotFoundError(original_path)
+        original_name = Path(original["filename"]).name
+        top_records.append((original_name, original_path, Path(original_name).stem))
+        for tile in info.get("tiles", []):
+            original_tile_path = Path(tile.get("path", tile["filename"]))
+            processed_path = tile_by_stem.get(Path(tile["filename"]).stem)
+            if processed_path is None:
+                processed_path = tile_by_stem.get(Path(original_tile_path).stem)
+            if processed_path is None:
+                continue
+            tile_records.append((tile, original, processed_path))
+
+    if not tile_records:
+        raise ValueError("No manifest tiles matched processed tile images")
+
+    summary_jobs: list[tuple[Path, Path, str]] = []
+    for original_name, original_path, stem in top_records:
+        summary_jobs.append((
+            original_path,
+            summary_root / f"{stem}.txt",
+            (
+                "Summarize this infographic for multimodal retrieval. Include its main "
+                "topic, important labels, numbers, and relationships. Be concise and factual."
+            ),
+        ))
+    for tile, original, processed_path in tile_records:
+        summary_jobs.append((
+            processed_path,
+            summary_root / f"{processed_path.stem}.txt",
+            (
+                "Summarize this infographic tile for retrieval. Include visible text, "
+                "numbers, entities, and the tile's main visual meaning. Be concise and factual."
+            ),
+        ))
+    if use_qwen_summaries:
+        caption_images(
+            [str(path) for path, _, _ in summary_jobs],
+            [str(out) for _, out, _ in summary_jobs],
+            prompts=[prompt for _, _, prompt in summary_jobs],
+            max_tokens=1024,
+            num_gpus=num_gpus,
+        )
+
+    top, low, facts = [], [], []
+    for original_name, original_path, stem in top_records:
+        summary_path = summary_root / f"{stem}.txt"
+        summary = summary_path.read_text(encoding="utf-8").strip() if summary_path.exists() else ""
+        top.append({
+            "id": [original_name, "i_1"],
+            "target": {
+                "text": f"{stem} [SEP] {summary}".strip(),
+                "images": [str(original_path)],
+            },
+        })
+
+    for tile, original, processed_path in tile_records:
+        original_name = Path(original["filename"]).name
+        tile_id = tile["component_id"]
+        location = (
+            f"row={tile.get('row', '?')} column={tile.get('column', '?')} "
+            f"x={tile.get('x', '?')} y={tile.get('y', '?')} "
+            f"width={tile.get('width', '?')} height={tile.get('height', '?')}"
+        )
+        summary_path = summary_root / f"{processed_path.stem}.txt"
+        summary = summary_path.read_text(encoding="utf-8").strip() if summary_path.exists() else ""
+        low.append({
+            "id": [original_name, tile_id],
+            "target": {
+                "text": f"{Path(original_name).stem} [SEP] {location} [SEP] {summary}".strip(),
+                "images": [str(processed_path), str(original.get("path", original["filename"]))],
+            },
+        })
+        fact_path = facts_dir / f"{processed_path.stem}.json"
+        if not fact_path.exists():
+            continue
+        raw_facts = json.loads(fact_path.read_text(encoding="utf-8"))
+        fact_items = raw_facts.get("facts", []) if isinstance(raw_facts, dict) else raw_facts
+        if not isinstance(fact_items, list):
+            continue
+        for index, fact in enumerate(fact_items):
+            if isinstance(fact, dict):
+                fact_text = str(fact.get("fact", fact.get("text", ""))).strip()
+                evidence = str(fact.get("ocr", fact.get("evidence", ""))).strip()
+            else:
+                fact_text, evidence = str(fact).strip(), ""
+            if not fact_text:
+                continue
+            facts.append({
+                "id": [original_name, f"{tile_id}_f{index:04d}"],
+                "target": {
+                    "text": f"{Path(original_name).stem} [SEP] {fact_text} [SEP] OCR [SEP] {evidence}",
+                    "images": [str(processed_path), str(original.get("path", original["filename"]))],
+                },
+            })
+
+    top_path = serialization_dir / "image.json"
+    low_path = serialization_dir / "subimage.json"
+    facts_path = serialization_dir / "tile_fact.json"
+    for path, data in ((top_path, top), (low_path, low), (facts_path, facts)):
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return top_path, low_path, facts_path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tiled InfoVQA Corpus Builder")
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT)
@@ -663,6 +926,11 @@ def main() -> None:
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--skip-qwen", action="store_true")
     parser.add_argument("--skip-embed", action="store_true")
+    parser.add_argument("--cluster-facts", action="store_true")
+    parser.add_argument("--fact-similarity-threshold", type=float, default=0.9)
+    parser.add_argument("--serialize-processed", action="store_true")
+    parser.add_argument("--use-qwen-summaries", action="store_true")
+    parser.add_argument("--processed-manifest", type=Path, default=None)
     args = parser.parse_args()
 
     # manifest = {}
@@ -702,9 +970,37 @@ def main() -> None:
         )
         # manifest = processed_manifest
 
-    # artifacts_folder = args.process_tiles_dir.parent
-    # print("Running serialize_tiles...", flush=True)
-    # top_path, low_path, facts_path = serialize_tiles(manifest, artifacts_folder)
+    if args.serialize_processed or args.use_qwen_summaries:
+        manifest_path = args.processed_manifest or (
+            args.tiles_after_process_dir / "manifest.json"
+        )
+        if not manifest_path.is_file():
+            raise FileNotFoundError(
+                f"Processed manifest is required for serialization: {manifest_path}"
+            )
+        processed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        print("Running serialize_processed_assets...", flush=True)
+        top_path, low_path, facts_path = serialize_processed_assets(
+            processed_manifest,
+            args.tiles_after_process_dir,
+            args.facts_dir,
+            args.process_tiles_dir.parent,
+            use_qwen_summaries=args.use_qwen_summaries,
+            num_gpus=args.num_gpus,
+        )
+        if not args.skip_embed:
+            print("Running embed_serializations...", flush=True)
+            embed_serializations(
+                top_path,
+                low_path,
+                facts_path,
+                args.process_tiles_dir.parent,
+                args.num_gpus,
+            )
+
+    artifacts_folder = args.process_tiles_dir.parent
+    print("Running serialize_tiles...", flush=True)
+    top_path, low_path, facts_path = serialize_tiles(processed_manifest, artifacts_folder)
 
     # if not args.skip_embed:
     #     print("Running embed_serializations...", flush=True)

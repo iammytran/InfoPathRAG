@@ -418,22 +418,25 @@ def extract_processed_ocr(
     output_dir: Path,
     num_gpus: int | None = None,
 ) -> None:
-    """Extract OCR as a JSON list for every processed tile."""
+    """Extract OCR per tile while preserving the raw Qwen response."""
     output_dir.mkdir(parents=True, exist_ok=True)
+    raw_output_dir = output_dir / "raw"
+    raw_output_dir.mkdir(parents=True, exist_ok=True)
     jobs = []
     for info in manifest["infographics"]:
         for tile in info["tiles"]:
             out = output_dir / f"{Path(tile['filename']).stem}.json"
-            jobs.append((tile, info["original"]["path"], out))
+            raw_out = raw_output_dir / out.name
+            jobs.append((tile, raw_out, out))
     caption_images(
-        [[tile["path"], original] for tile, original, _ in jobs],
-        [str(out) for _, _, out in jobs],
+        [tile["path"] for tile, _, _ in jobs],
+        [str(raw_out) for _, raw_out, _ in jobs],
         prompt=OCR_PROMPT,
         max_tokens=1024,
         num_gpus=num_gpus,
     )
-    for tile, _, out in jobs:
-        result = _json_from_qwen(out, {"ocr": []})
+    for tile, raw_out, out in jobs:
+        result = _json_from_qwen(raw_out, {"ocr": []})
         ocr_items = result.get("ocr", []) if isinstance(result, dict) else result
         ocr = [str(item).strip() for item in ocr_items
                if str(item).strip()] if isinstance(ocr_items, list) else []
@@ -998,9 +1001,9 @@ def main() -> None:
                 args.num_gpus,
             )
 
-    artifacts_folder = args.process_tiles_dir.parent
-    print("Running serialize_tiles...", flush=True)
-    top_path, low_path, facts_path = serialize_tiles(processed_manifest, artifacts_folder)
+    # artifacts_folder = args.process_tiles_dir.parent
+    # print("Running serialize_tiles...", flush=True)
+    # top_path, low_path, facts_path = serialize_tiles(processed_manifest, artifacts_folder)
 
     # if not args.skip_embed:
     #     print("Running embed_serializations...", flush=True)

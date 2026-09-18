@@ -28,7 +28,7 @@ class Component(ABC):
         self.hierarchy_path     = []
         self._images_dir        = images_dir
         self._image_summaries_dir = image_summaries_dir
-        self._set_hierarchy_path(hierarchy_dict)
+        # self._set_hierarchy_path(hierarchy_dict)
         
         return 
         

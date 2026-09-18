@@ -250,8 +250,11 @@ def caption_tiles(manifest: dict[str, Any], output_dir: Path, num_gpus: int | No
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
+import re
+import json
+
 def _repair_json_text(raw: str) -> str:
-    """Recover common Qwen JSON mistakes, such as truncated closing brackets."""
+    """Recover common Qwen JSON mistakes, handling truncated JSON arrays safely."""
     raw = raw.strip()
     fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", raw, flags=re.IGNORECASE | re.DOTALL)
     if fenced:
@@ -261,6 +264,14 @@ def _repair_json_text(raw: str) -> str:
     if start is None:
         return raw
     raw = raw[start:]
+
+    # Cải tiến: Nếu chuỗi kết thúc lửng lơ (bị cắt cụt giữa chừng),
+    # hãy tìm vị trí kết thúc của object hoàn chỉnh cuối cùng (dấu '}')
+    # và cắt bỏ phần đuôi lỗi phía sau đi.
+    if not raw.endswith("]") and not raw.endswith("}"):
+        last_brace = raw.rfind("}")
+        if last_brace != -1:
+            raw = raw[:last_brace + 1]
 
     stack: list[str] = []
     in_string = False
@@ -281,7 +292,6 @@ def _repair_json_text(raw: str) -> str:
             if stack and char == stack[-1]:
                 stack.pop()
 
-    # A response may end with a comma immediately before truncation.
     raw = re.sub(r",\s*$", "", raw)
     return raw + "".join(reversed(stack))
 
@@ -968,35 +978,39 @@ def main() -> None:
         # )
         # manifest = processed_manifest
 
-    if args.serialize_processed or args.use_qwen_summaries:
-        manifest_path = args.processed_manifest or (
-            args.tiles_after_process_dir / "manifest.json"
-        )
-        if not manifest_path.is_file():
-            raise FileNotFoundError(
-                f"Processed manifest is required for serialization: {manifest_path}"
-            )
+    # if args.serialize_processed or args.use_qwen_summaries:
+    #     manifest_path = args.processed_manifest or (
+    #         args.tiles_after_process_dir / "manifest.json"
+    #     )
+    #     if not manifest_path.is_file():
+    #         raise FileNotFoundError(
+    #             f"Processed manifest is required for serialization: {manifest_path}"
+    #         )
 
-        print(f"manifest_path: {manifest_path}")
-        processed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        print("Running serialize_processed_assets...", flush=True)
-        top_path, low_path, facts_path = serialize_processed_assets(
-            processed_manifest,
-            args.tiles_after_process_dir,
-            args.facts_dir,
+    #     print(f"manifest_path: {manifest_path}")
+    #     processed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    #     print("Running serialize_processed_assets...", flush=True)
+    #     top_path, low_path, facts_path = serialize_processed_assets(
+    #         processed_manifest,
+    #         args.tiles_after_process_dir,
+    #         args.facts_dir,
+    #         args.process_tiles_dir.parent,
+    #         use_qwen_summaries=args.use_qwen_summaries,
+    #         num_gpus=args.num_gpus,
+    #     )
+    if not args.skip_embed:
+        print("Running embed_serializations...", flush=True)
+        top_path = Path("/workspace/LILaC/artifacts/InfoVQA/serializations/image.json")
+        low_path = Path("/workspace/LILaC/artifacts/InfoVQA/serializations/subimage.json")
+        facts_path = Path("/workspace/LILaC/artifacts/InfoVQA/serializations/tile_fact.json")
+        # print(f"args.process_tiles_dir.parent")
+        embed_serializations(
+            top_path,
+            low_path,
+            facts_path,
             args.process_tiles_dir.parent,
-            use_qwen_summaries=args.use_qwen_summaries,
-            num_gpus=args.num_gpus,
+            args.num_gpus,
         )
-        if not args.skip_embed:
-            print("Running embed_serializations...", flush=True)
-            embed_serializations(
-                top_path,
-                low_path,
-                facts_path,
-                args.process_tiles_dir.parent,
-                args.num_gpus,
-            )
 
     # # artifacts_folder = args.process_tiles_dir.parent
     # # print("Running serialize_tiles...", flush=True)
@@ -1008,4 +1022,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    path = Path("/workspace/LILaC/artifacts/InfoVQA/facts_each_tile/raw/70574_merged_i_1_t0003.json")
+    value = _json_from_qwen(path, {"facts": []})
+    print(value)
+    

@@ -151,7 +151,7 @@ class Retriever:
         Load the questions and subqueries from the JSONL files.
         """
         questions_path                              = os.path.join(self._benchmark_dir, self._metadata_config["dataset_metadata"][self._target_dataset]["filename"])
-        subqueries_path                             = artifact_subpath(self._metadata_config, self._target_dataset, "query_decomposition_dirname", "dev", self._metadata_config["metadata_files"]["subqueries"])
+        subqueries_path                             = artifact_subpath(self._metadata_config, self._target_dataset, "query_decomposition_dirname", "test", self._metadata_config["metadata_files"]["subqueries"])
 
         emb_dir = artifact_subpath(self._metadata_config, self._target_dataset, "embeddings_dirname", self._target_embedder)
 
@@ -301,6 +301,9 @@ class Retriever:
                     summaries_directory = self._summaries_dir
                 )
                 if use_tile_graph:
+                    print("use tile graph")
+                    # facts_directory = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile"
+                    tile_manifesr = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile/manifest.json"
                     self.graph.load_tile_manifest(tile_manifest, facts_directory)
                     documents_with_facts = 0
                     for filename, edges in self.graph.intra_document_edges.items():
@@ -315,6 +318,19 @@ class Retriever:
                             edges.get(tile_id) for tile_id in tile_ids
                         ):
                             documents_with_facts += 1
+
+                    # print(self.graph.get_inter_document_edges_dict())
+                    # print("manifest:", tile_manifest)
+                    # print("facts directory:", facts_directory)
+                    # print("exists:", os.path.exists(facts_directory))
+
+                    # for filename, edges in self.graph.intra_document_edges.items():
+                    #     print(f"\nDocument: {filename}")
+                    #     print("Edges:", edges)
+
+                    #     for component_id, children in edges.items():
+                    #         print(f"  {component_id} -> {children}")
+                    
                     if not documents_with_facts:
                         raise ValueError(
                             "Tile manifest graph did not produce the expected "
@@ -375,6 +391,7 @@ class Retriever:
             elif self._run_function_mode == "mcts":
                 self.retrieve_mcts(qid, question_embedding, subquery_embeddings)
             elif self._run_function_mode == "tree_traversal":
+                print(f"starting...")
                 self.retrieve_tree_traversal(qid, question_embedding)
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
@@ -1481,7 +1498,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--run_mode",
         type=str,
-        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction"],
+        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction", "tree_traversal"],
         default=None,
         help="One of single_knn, single_topdown, decomposed_topdown, late_interaction."
     )

@@ -179,7 +179,7 @@ class Graph:
             hierarchy = {"infographic": {"components": ["i_1"]}}
             fact_objects = {}
             for tile in infographic["tiles"]:
-                print(f"tile: {tile}")
+                # print(f"tile: {tile}")
                 tile_id = tile["component_id"]
                 components[tile_id] = {
                     "filename": tile["filename"],
@@ -227,19 +227,24 @@ class Graph:
             self.title_to_documents[document.get_title()] = document
             component_map = document.get_id_to_component()
             self.intra_document_edges[filename] = {"i_1": []}
+            # print(f"infographic: {infographic}")
             for tile in infographic["tiles"]:
+                # print(f"tile: {tile}")
                 tile_id = tile["component_id"]
                 self.intra_document_edges[filename][tile_id] = []
+                # print(f"component_map: {component_map}")
                 if tile_id in component_map:
                     self.intra_document_edges[filename]["i_1"].append(
                         component_map[tile_id]
                     )
                 tile_facts = tile.get("facts", [])
+                
                 if not tile_facts and facts_directory is not None:
                     facts_path = facts_directory / f"{Path(tile['filename']).stem}.json"
                     if facts_path.exists():
                         with facts_path.open(encoding="utf-8") as fact_fh:
                             tile_facts = json.load(fact_fh).get("facts", [])
+                # print(f"tile_facts: {tile_facts}")
                 for index, _ in enumerate(tile_facts):
                     fact_id = f"{tile_id}_f{index:04d}"
                     if fact_id in component_map:

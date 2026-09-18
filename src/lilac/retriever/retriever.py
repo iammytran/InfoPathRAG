@@ -303,8 +303,11 @@ class Retriever:
                 if use_tile_graph:
                     print("use tile graph")
                     # facts_directory = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile"
-                    tile_manifesr = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile/manifest.json"
+                    tile_manifest = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile/manifest.json"
                     self.graph.load_tile_manifest(tile_manifest, facts_directory)
+                    print(f"load tile successfully!")
+
+                    print(f"self.graph.intra_document_edges.items(): {self.graph.intra_document_edges.items()}")
                     documents_with_facts = 0
                     for filename, edges in self.graph.intra_document_edges.items():
                         tile_ids = [

@@ -274,7 +274,7 @@ if __name__ == "__main__":
     cleaned_folder = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile"
     manifest_file = f"{cleaned_folder}/manifest.json"
 
-    process_and_save_json_files(raw_folder, cleaned_folder)
+    # process_and_save_json_files(raw_folder, cleaned_folder)
     update_manifest_facts(manifest_file, cleaned_folder)
     
     # initiate_graph()

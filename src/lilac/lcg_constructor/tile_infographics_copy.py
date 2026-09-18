@@ -717,21 +717,22 @@ def serialize_tiles(
         for tile in info["tiles"]:
             loc = f"row={tile['row']} column={tile['column']} x={tile['x']} y={tile['y']} width={tile['width']} height={tile['height']}"
             low.append({
-                "id": [orig_name, tile["component_id"]],
+                "id": [orig_name, f"{tile['component_id']}_{Path(tile['path']).name}"],
                 "target": {
                     "text": f"{Path(orig_name).stem} [SEP] a tile at location: {loc} [SEP] {tile.get('caption', '')}",
                     "images": [tile["path"]],
                 },
             })
             for fact_index, fact in enumerate(tile.get("facts", [])):
-                fact_id = f"{tile['component_id']}_f{fact_index:04d}"
+                tile_name = Path(tile["path"]).name
+                fact_id = f"{tile['component_id']}_{tile_name}_f{fact_index:04d}"
                 facts.append({
                     "id": [orig_name, fact_id],
                     "target": {
                         "text": f"{Path(orig_name).stem} [SEP] tile fact [SEP] "
                                      f"{fact.get('fact', fact.get('text', ''))} "
                                      f"[SEP] OCR [SEP] {fact.get('ocr', fact.get('evidence', ''))}",
-                        "images": [tile["path"], orig_path],
+                        "images": [],
                     },
                 })
 
@@ -776,8 +777,8 @@ def serialize_processed_assets(
     Processed tile images are discovered recursively below
     ``tiles_after_process_dir``. Fact files are matched by the processed tile
     stem. When ``use_qwen_summaries`` is enabled, Qwen creates summaries for
-    both originals and processed tiles; otherwise existing summaries are used
-    when available and a location-based text description is emitted.
+    processed tiles only; original infographic summaries are read from their
+    existing summary files.
     """
     if not tiles_after_process_dir.is_dir():
         raise FileNotFoundError(tiles_after_process_dir)
@@ -789,8 +790,9 @@ def serialize_processed_assets(
     output_dir.mkdir(parents=True, exist_ok=True)
     serialization_dir = output_dir / "serializations"
     serialization_dir.mkdir(parents=True, exist_ok=True)
-    summary_root = summaries_dir or output_dir / "summaries"
-    summary_root.mkdir(parents=True, exist_ok=True)
+    summary_root = Path("/workspace/LILaC/artifacts/InfoVQA")
+    # summary_root = summaries_dir or output_dir / "summaries"
+    # summary_root.mkdir(parents=True, exist_ok=True)
 
     image_paths = [
         path for path in sorted(tiles_after_process_dir.rglob("*"))
@@ -824,28 +826,21 @@ def serialize_processed_assets(
     if not tile_records:
         raise ValueError("No manifest tiles matched processed tile images")
 
-    summary_jobs: list[tuple[Path, Path, str]] = []
-    for original_name, original_path, stem in top_records:
-        summary_jobs.append((
-            original_path,
-            summary_root / f"{stem}.txt",
-            (
-                "Summarize this infographic for multimodal retrieval. Include its main "
-                "topic, important labels, numbers, and relationships. Be concise and factual."
-            ),
-        ))
+    summary_jobs: list[tuple[list[str], Path, str]] = []
     for tile, original, processed_path in tile_records:
         summary_jobs.append((
-            processed_path,
-            summary_root / f"{processed_path.stem}.txt",
+            [str(processed_path), str(original["path"])],
+            summary_root / "tile_summaries" / f"{processed_path.stem}.txt",
             (
-                "Summarize this infographic tile for retrieval. Include visible text, "
-                "numbers, entities, and the tile's main visual meaning. Be concise and factual."
+                "The first image is an infographic tile and the second image is the "
+                "complete original infographic. Summarize only the tile, using the "
+                "original image as context. Include visible text, numbers, entities, "
+                "and the tile's main visual meaning. Be concise and factual."
             ),
         ))
     if use_qwen_summaries:
         caption_images(
-            [str(path) for path, _, _ in summary_jobs],
+            [paths for paths, _, _ in summary_jobs],
             [str(out) for _, out, _ in summary_jobs],
             prompts=[prompt for _, _, prompt in summary_jobs],
             max_tokens=1024,
@@ -854,7 +849,7 @@ def serialize_processed_assets(
 
     top, low, facts = [], [], []
     for original_name, original_path, stem in top_records:
-        summary_path = summary_root / f"{stem}.txt"
+        summary_path = summary_root / "image_summaries" / "test" / f"{stem}.txt"
         summary = summary_path.read_text(encoding="utf-8").strip() if summary_path.exists() else ""
         top.append({
             "id": [original_name, "i_1"],
@@ -870,15 +865,15 @@ def serialize_processed_assets(
         location = (
             f"row={tile.get('row', '?')} column={tile.get('column', '?')} "
             f"x={tile.get('x', '?')} y={tile.get('y', '?')} "
-            f"width={tile.get('width', '?')} height={tile.get('height', '?')}"
+            # f"width={tile.get('width', '?')} height={tile.get('height', '?')}"
         )
-        summary_path = summary_root / f"{processed_path.stem}.txt"
+        summary_path = summary_root / "tile_summaries" / f"{processed_path.stem}.txt"
         summary = summary_path.read_text(encoding="utf-8").strip() if summary_path.exists() else ""
         low.append({
-            "id": [original_name, tile_id],
+            "id": [original_name, f"{processed_path.name}", f"{tile_id}"],
             "target": {
-                "text": f"{Path(original_name).stem} [SEP] {location} [SEP] {summary}".strip(),
-                "images": [str(processed_path), str(original.get("path", original["filename"]))],
+                "text": f"{Path(original_name).stem} [SEP] a tile at location {location} of infographic {Path(original_name).stem}.jpeg [SEP] {summary}".strip(),
+                "images": [str(processed_path)],
             },
         })
         fact_path = facts_dir / f"{processed_path.stem}.json"
@@ -897,10 +892,10 @@ def serialize_processed_assets(
             if not fact_text:
                 continue
             facts.append({
-                "id": [original_name, f"{tile_id}_f{index:04d}"],
+                "id": [original_name, f"{processed_path.name}", f"{tile_id}_f{index:04d}"],
                 "target": {
                     "text": f"{Path(original_name).stem} [SEP] {fact_text} [SEP] OCR [SEP] {evidence}",
-                    "images": [str(processed_path), str(original.get("path", original["filename"]))],
+                    "images": [],
                 },
             })
 
@@ -952,25 +947,25 @@ def main() -> None:
     #     estimated_components_path=args.estimated_components,
     # )
 
-    if not args.skip_qwen:
+    # if not args.skip_qwen:
         # print("Running detect_tile_boundaries...", flush=True)
         # detect_tile_boundaries(manifest, args.process_tiles_dir, args.num_gpus)
         # print("Running merge_processed_tiles...", flush=True)
         # processed_manifest = merge_processed_tiles(
         #     manifest, args.tiles_after_process_dir, args.process_tiles_dir
         # )
-        processed_manifest = {}
-        processed_manifest_file = "/workspace/LILaC/artifacts/InfoVQA/ocr_each_tile/manifest_test.json"
-        with open(processed_manifest_file, 'r') as file:
-            processed_manifest = json.load(file)
-        # print("Running extract_processed_ocr...", flush=True)
-        # extract_processed_ocr(
-        #     processed_manifest, args.ocr_dir, args.num_gpus
+        # processed_manifest = {}
+        # processed_manifest_file = "/workspace/LILaC/artifacts/InfoVQA/ocr_each_tile/manifest.json"
+        # with open(processed_manifest_file, 'r') as file:
+        #     processed_manifest = json.load(file)
+        # # print("Running extract_processed_ocr...", flush=True)
+        # # extract_processed_ocr(
+        # #     processed_manifest, args.ocr_dir, args.num_gpus
+        # # )
+        # print("Running extract_facts_each_tile...", flush=True)
+        # extract_facts_each_tile(
+        #     processed_manifest, args.facts_dir, args.num_gpus
         # )
-        print("Running extract_facts_each_tile...", flush=True)
-        extract_facts_each_tile(
-            processed_manifest, args.facts_dir, args.num_gpus
-        )
         # manifest = processed_manifest
 
     if args.serialize_processed or args.use_qwen_summaries:
@@ -981,6 +976,8 @@ def main() -> None:
             raise FileNotFoundError(
                 f"Processed manifest is required for serialization: {manifest_path}"
             )
+
+        print(f"manifest_path: {manifest_path}")
         processed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         print("Running serialize_processed_assets...", flush=True)
         top_path, low_path, facts_path = serialize_processed_assets(
@@ -1001,13 +998,13 @@ def main() -> None:
                 args.num_gpus,
             )
 
-    # artifacts_folder = args.process_tiles_dir.parent
-    # print("Running serialize_tiles...", flush=True)
-    # top_path, low_path, facts_path = serialize_tiles(processed_manifest, artifacts_folder)
+    # # artifacts_folder = args.process_tiles_dir.parent
+    # # print("Running serialize_tiles...", flush=True)
+    # # top_path, low_path, facts_path = serialize_tiles(processed_manifest, artifacts_folder)
 
-    # if not args.skip_embed:
-    #     print("Running embed_serializations...", flush=True)
-    #     embed_serializations(top_path, low_path, facts_path, artifacts_folder, args.num_gpus)
+    # # if not args.skip_embed:
+    # #     print("Running embed_serializations...", flush=True)
+    # #     embed_serializations(top_path, low_path, facts_path, artifacts_folder, args.num_gpus)
 
 
 if __name__ == "__main__":

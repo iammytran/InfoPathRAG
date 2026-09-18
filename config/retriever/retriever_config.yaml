@@ -28,7 +28,7 @@ parameters:
   
   target_level: top
 
-  top_k: 100
+  top_k: 300
   mcts_simulations: 64
   tree_traversal_top_k: 100
 
@@ -42,7 +42,7 @@ top_level_embeddings:
   gpu_num: -1   # FAISS index device: -1=CPU, >=0=GPU ordinal (needs faiss-gpu)
 
 low_level_embeddings:
-  text: sentence
+  text: tile_fact
   table: table_segment
   image: subimage
   gpu_num: -1

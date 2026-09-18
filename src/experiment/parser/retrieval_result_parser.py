@@ -157,7 +157,52 @@ class OMGVQARetrievalResultParser(RetrievalResultParser):
 
         return
     
+class MYVQARetrievalResultParser(RetrievalResultParser):
+    """Parse LILaC path results as an ordered list of retrieved images.
+
+    A tree-traversal path can contain the infographic, tile, and fact nodes
+    for the same image. VQA page recall must count that path once, not count
+    each node as a separate retrieval.
+    """
     
+    def parse_file(self):
+        raw_retrieval_results = read_json_or_jsonl(self._retrieval_result_path)
+        
+        for raw_retrieval_result in raw_retrieval_results:
+            qid = raw_retrieval_result["qid"]
+            time_dict = raw_retrieval_result["time"]
+
+            retrieved_documents = []
+            seen_documents = set()
+            for retrieved_path in raw_retrieval_result.get("retrieved_paths", []):
+                nodes = retrieved_path.get("nodes", [])
+                if not nodes:
+                    continue
+
+                # Every node target starts with the source image filename.
+                # Targets may have either [filename, component_id] or
+                # [filename, component_filename, component_id].
+                document_name = str(nodes[0][0])
+                for suffix in (".json", ".jpeg", ".jpg", ".png"):
+                    if document_name.endswith(suffix):
+                        document_name = document_name[: -len(suffix)]
+                        break
+                document_name = document_name.replace("/text", "")
+
+                if document_name not in seen_documents:
+                    seen_documents.add(document_name)
+                    retrieved_documents.append(document_name)
+                if len(retrieved_documents) >= DATA_PARSER_K:
+                    break
+
+            single_rresult = SingleRetrievalResult(
+                qid,
+                time_dict,
+                retrieved_documents,
+            )
+            self.retrieval_results.add_rresult_obj(qid, single_rresult)           
+
+        return
     
 class VisRAGVQARetrievalResultParser(RetrievalResultParser):
     
@@ -205,7 +250,7 @@ def parse_retrieval_results(
         if data_type == BenchmarkType.MULTIMODALQA:
             retrieval_parser = OMGMMQARetrievalResultParser(algorithm_name, data_type, qa_data_path, retrieval_result_path)
         elif data_type == BenchmarkType.VQA:
-            retrieval_parser = OMGVQARetrievalResultParser(algorithm_name, data_type, qa_data_path, retrieval_result_path)
+            retrieval_parser = MYVQARetrievalResultParser(algorithm_name, data_type, qa_data_path, retrieval_result_path)
         
     elif algorithm_name == AlgorithmName.VISRAG:
         if data_type == BenchmarkType.MULTIMODALQA:

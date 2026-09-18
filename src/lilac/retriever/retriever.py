@@ -22,10 +22,10 @@ from src.utils.utils import (
     dataset_root, artifact_root, input_subpath, artifact_subpath, parsed_documents_path,
 )
 
-# logging.basicConfig(level=logging.INFO,
-#                     format='%(asctime)s - %(levelname)s - %(message)s',
-#                     filename=os.path.join('debug', 'retriever.log'),
-#                     filemode='a')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    filename=os.path.join('debug', 'retriever.log'),
+                    filemode='a')
 
 
 
@@ -254,6 +254,10 @@ class Retriever:
         else:
             self.level_to_indexer["both"] = None
 
+        low_index = self.level_to_indexer["fact"]
+        print("[DEBUG] all low index targets:")
+        for index, target in list(low_index._idx2target.items())[:30]:
+            print(index, repr(target))
         return
     
     def initiate_graph(self):
@@ -307,7 +311,7 @@ class Retriever:
                     self.graph.load_tile_manifest(tile_manifest, facts_directory)
                     print(f"load tile successfully!")
 
-                    print(f"self.graph.intra_document_edges.items(): {self.graph.intra_document_edges.items()}")
+                    # print(f"self.graph.intra_document_edges.items(): {self.graph.intra_document_edges.items()}")
                     documents_with_facts = 0
                     for filename, edges in self.graph.intra_document_edges.items():
                         tile_ids = [
@@ -394,8 +398,8 @@ class Retriever:
             elif self._run_function_mode == "mcts":
                 self.retrieve_mcts(qid, question_embedding, subquery_embeddings)
             elif self._run_function_mode == "tree_traversal":
-                print(f"starting...")
                 self.retrieve_tree_traversal(qid, question_embedding)
+                # print(f"tree_traversal")
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
@@ -404,20 +408,33 @@ class Retriever:
         return
 
     @staticmethod
+    def _target_parts(target):
+        if not isinstance(target, (list, tuple)) or len(target) not in (2, 3):
+            raise ValueError(f"Unexpected target format: {target!r}")
+        if len(target) == 2:
+            return str(target[0]), str(target[1])
+        return str(target[0]), str(target[2])
+
+    @staticmethod
     def _is_tile_target(target):
+        try:
+            _, component_id = Retriever._target_parts(target)
+        except ValueError:
+            return False
         return (
-            isinstance(target, (list, tuple))
-            and len(target) == 2
-            and "_t" in str(target[1])
-            and "_f" not in str(target[1])
+            component_id.startswith("i_1_t")
+            and "_f" not in component_id
         )
+
 
     @staticmethod
     def _is_fact_target(target):
+        try:
+            _, component_id = Retriever._target_parts(target)
+        except ValueError:
+            return False
         return (
-            isinstance(target, (list, tuple))
-            and len(target) == 2
-            and "_f" in str(target[1])
+            "_f" in component_id
         )
 
     def _subquery_scores_for_target(self, indexer, target, subquery_embeddings):
@@ -563,6 +580,8 @@ class Retriever:
             if self._is_tile_target(result["target"])
         ][:top_k_nodes]
         top_results = top_results[:top_k_nodes]
+        logging.info(f"top_results: {top_results}")
+        logging.info(f"tile_results: {tile_results}")
         search_done = time.perf_counter()
 
         # Collapse the two candidate layers into one ranked candidate list.
@@ -570,7 +589,7 @@ class Retriever:
         # candidates, as opposed to returning top-k from each layer.
         ranked_items: dict[tuple[str, str], dict[str, Any]] = {}
         for result in top_results + tile_results:
-            target = tuple(result["target"])
+            target = self._target_parts(result["target"])
             candidate = {
                 "target": target,
                 "score": float(result["score"]),
@@ -598,13 +617,13 @@ class Retriever:
             tuple[str, str], tuple[tuple[str, str], float]
         ] = {}
         for item in selected_items:
-            root_target = tuple(item["target"])
+            root_target = self._target_parts(item["target"])
             filename, component_id = root_target
             if item["source"] == "tile":
                 tile_ids = [root_target]
             else:
                 tile_ids = [
-                    tuple(child.get_gcid())
+                    self._target_parts(child.get_gcid())
                     for child in self.graph.intra_document_edges.get(filename, {}).get(
                         component_id, []
                     )
@@ -623,7 +642,7 @@ class Retriever:
             for child in self.graph.intra_document_edges.get(filename, {}).get(
                 tile_id, []
             ):
-                fact_target = tuple(child.get_gcid())
+                fact_target = self._target_parts(child.get_gcid())
                 if self._is_fact_target(fact_target):
                     previous = candidate_facts.get(fact_target)
                     candidate = (root_target, tile_target, root_score)
@@ -632,10 +651,20 @@ class Retriever:
 
         fact_embeddings = fact_index.get_embeddings().float()
         query = query_vec.to(fact_embeddings.device, dtype=fact_embeddings.dtype)
+        indexed_fact_targets = {}
+        for indexed_target in (fact_index._idx2target or {}).values():
+            try:
+                normalized_target = self._target_parts(indexed_target)
+            except ValueError:
+                continue
+            if self._is_fact_target(normalized_target):
+                indexed_fact_targets[normalized_target] = tuple(indexed_target)
+
         scored_facts = []
         for fact_target, (root_target, tile_target, root_score) in candidate_facts.items():
+            index_target = indexed_fact_targets.get(fact_target, fact_target)
             try:
-                row = fact_index.get_vector_idx_for_target(fact_target)
+                row = fact_index.get_vector_idx_for_target(index_target)
             except KeyError:
                 continue
             fact_score = float(

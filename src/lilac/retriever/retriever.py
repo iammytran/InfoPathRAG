@@ -470,18 +470,37 @@ class Retriever:
         top_tiles = []
         seen_tiles = set()
         for result in tile_results:
-            target = tuple(result["target"])
-            if self._is_tile_target(target) and target not in seen_tiles:
+            raw_target = tuple(result["target"])
+            if self._is_tile_target(raw_target):
+                target = self._target_parts(raw_target)
+                if target in seen_tiles:
+                    continue
                 seen_tiles.add(target)
                 top_tiles.append(target)
                 if len(top_tiles) == 5:
                     break
         tile_done = time.perf_counter()
 
+        fact_index = self.level_to_indexer.get("fact")
+        if fact_index is None or fact_index.get_embeddings() is None:
+            raise RuntimeError(
+                "MCTS requires tile_fact embeddings "
+                "(tile_fact.pt and tile_fact.json)."
+            )
+
+        indexed_fact_targets = {}
+        for indexed_target in (fact_index._idx2target or {}).values():
+            try:
+                normalized_target = self._target_parts(indexed_target)
+            except ValueError:
+                continue
+            if self._is_fact_target(normalized_target):
+                indexed_fact_targets[normalized_target] = tuple(indexed_target)
+
         paths = []
         for tile in top_tiles:
             children = [
-                tuple(child.get_gcid())
+                self._target_parts(child.get_gcid())
                 for child in self.graph.intra_document_edges.get(tile[0], {}).get(
                     tile[1], []
                 )
@@ -502,8 +521,11 @@ class Retriever:
                         key=lambda item: totals[item] / visits[item]
                         + math.sqrt(2.0 * math.log(sum(visits.values()) + 1) / visits[item]),
                     )
+                index_target = indexed_fact_targets.get(fact)
+                if index_target is None:
+                    continue
                 reward, specific = self._subquery_scores_for_target(
-                    self.level_to_indexer["low"], fact, query_vec_list
+                    fact_index, index_target, query_vec_list
                 )
                 visits[fact] += 1
                 totals[fact] += reward
@@ -1530,7 +1552,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--run_mode",
         type=str,
-        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction", "tree_traversal"],
+        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction", "tree_traversal", "mcts"],
         default=None,
         help="One of single_knn, single_topdown, decomposed_topdown, late_interaction."
     )

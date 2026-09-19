@@ -113,7 +113,17 @@ Explanation = The South Asia passage identifies Afghanistan as part of the subco
 """
 
 
+DEMONSTRATION_PROMPT_PATH = """
+/*
+[Path]
+Root: Global Infographic (Global layout overview)
+Tile (Image 1): Spatial tile focusing on the regional economic performance section.
+Fact: The infographic states that the technology sector generated 450 million USD in revenue in 2025.
+*/
 
+Question = How much revenue did the technology sector generate in 2025 according to the infographic?
+Explanation = By following the hierarchical path from the global infographic down to spatial Tile (Image 1) and the corresponding atomic fact, we can identify both the visual layout context and the specific data point. The extracted fact explicitly states that the technology sector's revenue in 2025 was 450 million USD. Therefore, the answer is: f_answers(["450 million USD"])
+"""
 
 
 PAGE_PROMPT = """

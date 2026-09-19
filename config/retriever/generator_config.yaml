@@ -10,6 +10,10 @@ retrieval_results_path: ${REPO_ROOT}/algorithm_results/LILaC/MultimodalQA/retrie
 
 num_components: 9
 
+num_paths: 1
+
+use_retrieved_paths: true
+
 force_overwrite: true
 
 num_gpus : 4

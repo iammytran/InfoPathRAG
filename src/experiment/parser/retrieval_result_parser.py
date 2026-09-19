@@ -77,7 +77,12 @@ class OMGMMQARetrievalResultParser(RetrievalResultParser):
                 if len(retrieved_component_ids) >= DATA_PARSER_K:
                     break
                 
-            single_rresult = SingleRetrievalResult(qid, time_dict, retrieved_component_ids)
+            single_rresult = SingleRetrievalResult(
+                qid,
+                time_dict,
+                retrieved_component_ids,
+                raw_retrieval_result.get("retrieved_paths", []),
+            )
             self.retrieval_results.add_rresult_obj(qid, single_rresult)
             
         return
@@ -199,6 +204,7 @@ class MYVQARetrievalResultParser(RetrievalResultParser):
                 qid,
                 time_dict,
                 retrieved_documents,
+                raw_retrieval_result.get("retrieved_paths", []),
             )
             self.retrieval_results.add_rresult_obj(qid, single_rresult)           
 

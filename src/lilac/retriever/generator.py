@@ -29,6 +29,7 @@ from src.lilac.prompts.prompts import (
     INSTRUCTION_PROMPT_NONIMAGE,
     INSTRUCTION_PROMPT_IMAGE,
     DEMONSTRATION_PROMPT,
+    DEMONSTRATION_PROMPT_PATH,
     PAGE_PROMPT
 )
 
@@ -54,6 +55,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--generation_model",         type=str,   help="Which generation model to use. (Example: Qwen2.5-VL-7B)")
     parser.add_argument("--retrieval_results_path",   type=str,   help="Path to the retrieval results (.jsonl).")
     parser.add_argument("--num_components",           type=int,   help="Number of components to use from retrieval results.")
+    parser.add_argument("--num_paths",                type=int,   help="Number of retrieved paths to use.")
+    parser.add_argument("--use_retrieved_paths",      action="store_true", help="Use top-k retrieved paths instead of flattened components.")
     parser.add_argument("--force_overwrite",          type=bool,  help="Force overwrite of existing output files.")
     parser.add_argument("--num_gpus",                 type=int,   help="Number of GPUs to use for parallel generation.")
     parser.add_argument("--path_to_model",            type=str,   help="Path to Qwen2.5-VL-7B or similar.")
@@ -75,6 +78,10 @@ def load_config(config_path: str, cli_args: argparse.Namespace) -> Dict[str, Any
         config["retrieval_results_path"] = cli_args.retrieval_results_path
     if cli_args.num_components is not None:
         config["num_components"] = cli_args.num_components
+    if cli_args.num_paths is not None:
+        config["num_paths"] = cli_args.num_paths
+    if cli_args.use_retrieved_paths:
+        config["use_retrieved_paths"] = True
     if cli_args.force_overwrite is not None:
         config["force_overwrite"] = cli_args.force_overwrite
     if cli_args.num_gpus is not None:
@@ -114,6 +121,8 @@ class Generator:
         self.generation_model  = config["generation_model"]
         self.retrieval_results_path = config["retrieval_results_path"]
         self.num_components    = config["num_components"]
+        self.num_paths         = config.get("num_paths", self.num_components)
+        self.use_retrieved_paths = config.get("use_retrieved_paths", False)
         self.force_overwrite   = config["force_overwrite"]
         self.num_gpus          = config["num_gpus"]
         self.path_to_model     = config.get("path_to_model", None)
@@ -279,11 +288,34 @@ class Generator:
         qid_to_rresult = retrieval_manager.get_qid_to_rresult()
         out_map = {}
         for qid, srres in qid_to_rresult.items():
-            top = srres.get_retrieved_components()[: self.num_components]
+            if self.use_retrieved_paths and srres.get_retrieved_paths():
+                top = self._components_from_paths(
+                    srres.get_retrieved_paths()[: self.num_paths]
+                )
+            else:
+                top = srres.get_retrieved_components()[: self.num_components]
             out_map[qid] = top
             
         print(f"[Generator] Loaded {len(out_map)} retrieval results.")
         return out_map
+
+    @staticmethod
+    def _components_from_paths(paths: List[Dict[str, Any]]) -> List[tuple[str, str]]:
+        """Flatten top-k paths into ordered, unique graph component targets."""
+        components = []
+        seen = set()
+        for path in paths:
+            for node in path.get("nodes", []):
+                if len(node) == 2:
+                    target = (str(node[0]), str(node[1]))
+                elif len(node) == 3:
+                    target = (str(node[0]), str(node[2]))
+                else:
+                    raise ValueError(f"Unexpected path node format: {node!r}")
+                if target not in seen:
+                    seen.add(target)
+                    components.append(target)
+        return components
 
     def build_prompt(self, qid: str, top_gcids: List[List[str]]) -> tuple[str, List[str]]:
         """ Return (text_prompt, image_paths). """
@@ -349,7 +381,7 @@ class Generator:
             # combine
             text_prompt = (
                 instruction_prompt
-                + DEMONSTRATION_PROMPT
+                + DEMONSTRATION_PROMPT_PATH
                 + "\n"
                 + "\n".join(serialized_parts)
                 + "\n"

@@ -22,7 +22,7 @@ class MultimodalDocument:
     ):
         
         self.file_path = file_path
-        self.images_dir = images_dir,
+        self.images_dir = images_dir
         self.subimages_dir = subimages_dir
         self.image_summaries_dir = image_summaries_dir
         self.title: str = None

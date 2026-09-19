@@ -119,7 +119,7 @@ class Generator:
         self.run_name          = config["run_name"]
         self.target_dataset    = config["target_dataset"]
         self.generation_model  = config["generation_model"]
-        self.retrieval_results_path = config["retrieval_results_path"]
+        self.retrieval_results_path = "/workspace/LILaC/algorithm_results/LILaC/InfoVQA/retrieval/info_vqa_tree_traversal/info_vqa_tree_traversal.jsonl"
         self.num_components    = config["num_components"]
         self.num_paths         = config.get("num_paths", self.num_components)
         self.use_retrieved_paths = config.get("use_retrieved_paths", False)
@@ -364,8 +364,8 @@ class Generator:
             for gcid in top_gcids:
                 # expand if needed
                 filename, component_id = gcid
-                # if your graph expects .json, do: filename += ".json"
-                component: Component = self.graph.get_component_by_gcid(filename + ".json", component_id)
+                document_filename = self._resolve_graph_document_filename(filename)
+                component: Component = self.graph.get_component_by_gcid(document_filename, component_id)
 
                 serialized_text, cmp_image_paths, updated_idx = component.serialize_into_prompt(next_image_idx)
                 serialized_parts.append(serialized_text)
@@ -387,11 +387,34 @@ class Generator:
                 + "\n"
                 + f"Question = {question_text}\nThe answer is: "
             )
-            
+
         if self.text_only:
             image_paths = []
         
         return text_prompt, image_paths
+
+    def _resolve_graph_document_filename(self, filename: str) -> str:
+        """Resolve retrieval filenames against the keys stored by the graph.
+
+        Retrieval outputs may identify a document by its source filename
+        (for example, ``36966.jpeg``), while parsed-document graphs commonly
+        use the generated JSON filename (``36966.json``).
+        """
+        graph_filenames = self.graph.filename_to_document
+        candidates = [filename]
+        if not filename.endswith(".json"):
+            candidates.append(f"{filename}.json")
+            stem, _ = os.path.splitext(filename)
+            candidates.append(f"{stem}.json")
+
+        for candidate in candidates:
+            if candidate in graph_filenames:
+                return candidate
+
+        raise ValueError(
+            f"Document with filename {filename} not found in graph. "
+            f"Tried: {', '.join(candidates)}."
+        )
 
 
 

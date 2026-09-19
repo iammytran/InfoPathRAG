@@ -77,7 +77,12 @@ class Component(ABC):
         raise NotImplementedError("The method get_edges() is not implemented in the Component class.")
         
     def _get_image_abs_path(self, image_filename):
-        image_filepath = os.path.join(self._images_dir, image_filename)
+        images_dir = self._images_dir
+        if isinstance(images_dir, tuple):
+            if len(images_dir) != 1 or not isinstance(images_dir[0], (str, os.PathLike)):
+                raise TypeError(f"Expected image directory path, got {images_dir!r}")
+            images_dir = images_dir[0]
+        image_filepath = os.path.join(images_dir, image_filename)
         if not os.path.exists(image_filepath):
             return None
         return image_filepath

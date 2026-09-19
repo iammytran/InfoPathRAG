@@ -243,41 +243,41 @@ if __name__ == "__main__":
 
 
 
-    tprint("MMEMBED")
+    # tprint("MMEMBED")
 
-    print("MMEmbed + MP-DocVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/MP-DocVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MP-DocVQA/generation/mmembed_default/mmembed_default.jsonl"
+    # print("MMEmbed + MP-DocVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/MP-DocVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MP-DocVQA/generation/mmembed_default/mmembed_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
     
-    print("MMEmbed + SlideVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/SlideVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/SlideVQA/generation/mmembed_default/mmembed_default.jsonl"
+    # print("MMEmbed + SlideVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/SlideVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/SlideVQA/generation/mmembed_default/mmembed_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
     
     print("MMEmbed + InfoVQA")
     data_type                = BenchmarkType.VQA
     label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/InfoVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/InfoVQA/generation/mmembed_default/mmembed_default.jsonl"
+    qa_data_path             = "/workspace/LILaC/datasets/InfoVQA/QAs_test.json"
+    generation_result_path   = "/workspace/LILaC/algorithm_results/LILaC/InfoVQA/generation/mmembed_default/mmembed_default.jsonl"
     
     accuracy_dict = evaluate_end2end_accuracy(
         benchmark_type = data_type,
@@ -287,169 +287,169 @@ if __name__ == "__main__":
     )
     print(json.dumps(accuracy_dict, indent = 4))
 
-    print("MMEmbed + MultimodalQA")    
-    data_type                = BenchmarkType.MULTIMODALQA
-    label_type               = LabelType.COMPONENT
-    qa_data_path             = "/root/LILaC/datasets/MultimodalQA/QAs_dev_labeled.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MultimodalQA/generation/mmembed_default/mmembed_default.jsonl"
+    # print("MMEmbed + MultimodalQA")    
+    # data_type                = BenchmarkType.MULTIMODALQA
+    # label_type               = LabelType.COMPONENT
+    # qa_data_path             = "/root/LILaC/datasets/MultimodalQA/QAs_dev_labeled.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MultimodalQA/generation/mmembed_default/mmembed_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
 
 
     
-    tprint("UniME")
+    # tprint("UniME")
     
-    print("UniME + MP-DocVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/MP-DocVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MP-DocVQA/generation/unime_default/unime_default.jsonl"
+    # print("UniME + MP-DocVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/MP-DocVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MP-DocVQA/generation/unime_default/unime_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
     
-    print("UniME + SlideVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/SlideVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/SlideVQA/generation/unime_default/unime_default.jsonl"
+    # print("UniME + SlideVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/SlideVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/SlideVQA/generation/unime_default/unime_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
     
-    print("UniME + InfoVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/InfoVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/InfoVQA/generation/unime_default/unime_default.jsonl"
+    # print("UniME + InfoVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/InfoVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/InfoVQA/generation/unime_default/unime_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
-    
-
-    print("UniME + MultimodalQA")
-    data_type                = BenchmarkType.MULTIMODALQA
-    label_type               = LabelType.COMPONENT
-    qa_data_path             = "/root/LILaC/datasets/MultimodalQA/QAs_dev_labeled.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MultimodalQA/generation/unime_default/unime_default.jsonl"
-    
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
-    
-    print("UniME + MMCoQA")
-    data_type                = BenchmarkType.MULTIMODALQA
-    label_type               = LabelType.COMPONENT
-    qa_data_path             = "/root/LILaC/datasets/MMCoQA/QAs_dev_labeled.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MMCoQA/generation/unime_default/unime_default.jsonl"
-    
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
-
-
-
-    tprint("MMe5")
-    
-    print("MMe5 + MP-DocVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/MP-DocVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MP-DocVQA/generation/mme5_default/mme5_default.jsonl"
-    
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
-    
-    print("MMe5 + SlideVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/SlideVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/SlideVQA/generation/mme5_default/mme5_default.jsonl"
-    
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
-    
-    print("MMe5 + InfoVQA")
-    data_type                = BenchmarkType.VQA
-    label_type               = None
-    qa_data_path             = "/root/LILaC/datasets/InfoVQA/QAs_dev.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/InfoVQA/generation/mme5_default/mme5_default.jsonl"
-    
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
     
 
-    print("MMe5 + MultimodalQA")
-    data_type                = BenchmarkType.MULTIMODALQA
-    label_type               = LabelType.COMPONENT
-    qa_data_path             = "/root/LILaC/datasets/MultimodalQA/QAs_dev_labeled.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MultimodalQA/generation/mme5_default/mme5_default.jsonl"
+    # print("UniME + MultimodalQA")
+    # data_type                = BenchmarkType.MULTIMODALQA
+    # label_type               = LabelType.COMPONENT
+    # qa_data_path             = "/root/LILaC/datasets/MultimodalQA/QAs_dev_labeled.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MultimodalQA/generation/unime_default/unime_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
     
-    print("MMe5 + MMCoQA")
-    data_type                = BenchmarkType.MULTIMODALQA
-    label_type               = LabelType.COMPONENT
-    qa_data_path             = "/root/LILaC/datasets/MMCoQA/QAs_dev_labeled.json"
-    generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MMCoQA/generation/mme5_default/mme5_default.jsonl"
+    # print("UniME + MMCoQA")
+    # data_type                = BenchmarkType.MULTIMODALQA
+    # label_type               = LabelType.COMPONENT
+    # qa_data_path             = "/root/LILaC/datasets/MMCoQA/QAs_dev_labeled.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MMCoQA/generation/unime_default/unime_default.jsonl"
     
-    accuracy_dict = evaluate_end2end_accuracy(
-        benchmark_type = data_type,
-        label_type = label_type,
-        qa_data_path = qa_data_path,
-        generation_result_path = generation_result_path,
-    )
-    print(json.dumps(accuracy_dict, indent = 4))
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
+
+
+
+    # tprint("MMe5")
+    
+    # print("MMe5 + MP-DocVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/MP-DocVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MP-DocVQA/generation/mme5_default/mme5_default.jsonl"
+    
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
+    
+    # print("MMe5 + SlideVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/SlideVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/SlideVQA/generation/mme5_default/mme5_default.jsonl"
+    
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
+    
+    # print("MMe5 + InfoVQA")
+    # data_type                = BenchmarkType.VQA
+    # label_type               = None
+    # qa_data_path             = "/root/LILaC/datasets/InfoVQA/QAs_dev.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/InfoVQA/generation/mme5_default/mme5_default.jsonl"
+    
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
+    
+
+    # print("MMe5 + MultimodalQA")
+    # data_type                = BenchmarkType.MULTIMODALQA
+    # label_type               = LabelType.COMPONENT
+    # qa_data_path             = "/root/LILaC/datasets/MultimodalQA/QAs_dev_labeled.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MultimodalQA/generation/mme5_default/mme5_default.jsonl"
+    
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
+    
+    # print("MMe5 + MMCoQA")
+    # data_type                = BenchmarkType.MULTIMODALQA
+    # label_type               = LabelType.COMPONENT
+    # qa_data_path             = "/root/LILaC/datasets/MMCoQA/QAs_dev_labeled.json"
+    # generation_result_path   = "/root/LILaC/algorithm_results/LILaC/MMCoQA/generation/mme5_default/mme5_default.jsonl"
+    
+    # accuracy_dict = evaluate_end2end_accuracy(
+    #     benchmark_type = data_type,
+    #     label_type = label_type,
+    #     qa_data_path = qa_data_path,
+    #     generation_result_path = generation_result_path,
+    # )
+    # print(json.dumps(accuracy_dict, indent = 4))
 
 
     pass

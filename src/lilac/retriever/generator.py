@@ -125,7 +125,7 @@ class Generator:
         self.generation_model  = config["generation_model"]
         self.retrieval_results_path = "/workspace/LILaC/algorithm_results/LILaC/InfoVQA/retrieval_backup/info_vqa_tree_traversal_copy/info_vqa_tree_traversal.jsonl"
         self.num_components    = config["num_components"]
-        self.num_paths         = 3
+        self.num_paths         = 1
         self.use_retrieved_paths = config.get("use_retrieved_paths", False)
         self.force_overwrite   = config["force_overwrite"]
         self.num_gpus          = config["num_gpus"]
@@ -295,7 +295,7 @@ class Generator:
             if self.use_retrieved_paths and srres.get_retrieved_paths():
                 print(f"lấy paths")
                 print(f"self.num_paths: {self.num_paths}")
-                top = srres.get_retrieved_paths()[: self.num_paths]
+                top = srres.get_retrieved_paths()[:1]
                 print(f"top: {top}")
             else:
                 top = srres.get_retrieved_components()[: self.num_components]
@@ -352,7 +352,7 @@ class Generator:
             next_image_idx = 1
             
             if isinstance(top_gcids[0], dict):
-                for path_idx, path in enumerate(top_gcids, start=1):
+                for path_idx, path in enumerate(top_gcids[:1], start=1):
                     serialized_path = [f"/*", f"[Hierarchical Path {path_idx}]"]
                     for node_idx, node in enumerate(path.get("nodes", [])):
                         print(f"node_idx: {node_idx}")
@@ -368,34 +368,56 @@ class Generator:
                         component: Component = self.graph.get_component_by_gcid(
                             document_filename, str(component_id)
                         )
-                        if node_idx == 0:
-                            label = "Root (Global Infographic)"
-                        elif isinstance(component, Image):
+                        if isinstance(component, Image):
                             label = "Tile"
                         else:
                             label = "Atomic Fact"
 
                         if isinstance(component, Image):
+                            original_component = self.graph.get_component_by_gcid(
+                                document_filename, "i_1"
+                            )
+                            original_image_ref = ""
+                            original_summary = None
+                            if isinstance(original_component, Image):
+                                original_image_path = self._resolve_prompt_image_path(
+                                    original_component, "i_1"
+                                )
+                                if original_image_path is not None:
+                                    original_image_ref = f"<Original image {next_image_idx}>"
+                                    image_paths.append(original_image_path)
+                                    next_image_idx += 1
+                                original_summary = self._get_original_image_summary(
+                                    document_filename
+                                )
+
                             image_ref = ""
                             image_path = self._resolve_prompt_image_path(
                                 component, str(component_id)
                             )
                             print(f"image_path: {image_path}")
                             if image_path is not None:
-                                image_ref = f"<Image {next_image_idx}>"
+                                image_ref = f"<Tile image {next_image_idx}>"
 
                                 image_paths.append(image_path)
                                 next_image_idx += 1
                             caption = component.component_obj.get("caption", {}).get(
                                 "text", ""
                             )
-                            if node_idx == 0:
-                                description = (
-                                    f"{component.get_document_title()} "
-                                    f"{image_ref} ({caption})"
-                                ).strip()
-                            else:
-                                description = f"{image_ref} ({caption})".strip()
+                            description = " ".join(
+                                part
+                                for part in (
+                                    f"Original image: {original_image_ref}",
+                                    image_ref,
+                                    f"({caption})" if caption else "",
+                                    (
+                                        f"Original image summary: {original_summary}"
+                                        if original_summary
+                                        else ""
+                                    ),
+                                )
+                                if part
+                            ).strip()
                         elif isinstance(component, Text):
                             description = f'"{component.text}"'
                         else:
@@ -446,6 +468,15 @@ class Generator:
         
         return text_prompt, image_paths
 
+    def _get_original_image_summary(self, document_filename: str) -> str | None:
+        original = self.graph.get_component_by_gcid(document_filename, "i_1")
+        if not isinstance(original, Image):
+            return None
+        filename = original.component_obj.get("filename")
+        if not filename:
+            return None
+        return original._get_image_summary(str(filename))
+
     def _resolve_prompt_image_path(
         self, component: Image, component_id: str
     ) -> str | None:
@@ -455,12 +486,9 @@ class Generator:
             return None
 
         if component_id == "i_1":
-            image_dir = Path("/workspace/LILaC/datasets/InfoVQA/image_components/test")
+            image_dir = Path(REPO_ROOT) / "datasets/InfoVQA/image_components/test"
         elif "_t" in component_id:
-            image_dir = Path(
-                "/workspace/LILaC/artifacts_backup/artifacts/InfoVQA/"
-                "tiles_after_process"
-            )
+            image_dir = Path(REPO_ROOT) / "artifacts/InfoVQA/tiles_after_process"
         else:
             return component._get_image_abs_path(filename)
 

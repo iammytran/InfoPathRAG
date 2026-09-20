@@ -115,13 +115,16 @@ Explanation = The South Asia passage identifies Afghanistan as part of the subco
 """
 INSTRUCTION_PROMPT_PATH = """
 You are an expert multimodal reasoning assistant specialized in analyzing infographics. 
-You will be provided with a hierarchical path retrieved from an infographic document, consisting of:
-1. Root: The global infographic layout overview.
-2. Tile: A specific spatial tile containing regional visual elements.
-3. Fact: An extracted atomic fact stating precise text or data points.
+You will be provided with exactly one retrieved path from an infographic document, consisting of:
+1. Original image: The complete infographic image.
+2. Tile: A spatial tile cropped from the original image.
+3. Original image summary: A textual summary of the complete infographic.
+4. Fact: An extracted atomic fact associated with the tile.
 
-Your task is to analyze the given hierarchical path and answer the user's question. 
-- Use the contextual provenance provided by the path to combine global layout awareness, local visual cues, and fine-grained textual evidence.
+Your task is to analyze this single tile-fact path and answer the user's question.
+- Use the original image and tile image for visual context, the original-image summary for document-level context, and the fact for precise textual evidence.
+- Treat the original-image summary as supporting context, not as a replacement for the retrieved fact.
+- Do not infer evidence from other paths or from an unseen infographic.
 - Avoid hallucinations and stick strictly to the facts presented within the path.
 - Provide a brief explanation of how the path leads to the answer, and output the final answer using the format: f_answers(["your_answer"]).
 """
@@ -129,13 +132,14 @@ Your task is to analyze the given hierarchical path and answer the user's questi
 DEMONSTRATION_PROMPT_PATH = """
 /*
 [Path]
-Root: Global Infographic (Global layout overview)
-Tile (Image 1): Spatial tile focusing on the regional economic performance section.
+Original image (Image 1): Complete infographic showing multiple economic sectors.
+Tile (Image 2): Spatial tile focusing on the regional economic performance section.
+Original image summary: The full infographic compares the revenue of multiple economic sectors in 2025.
 Fact: The infographic states that the technology sector generated 450 million USD in revenue in 2025.
 */
 
 Question = How much revenue did the technology sector generate in 2025 according to the infographic?
-Explanation = By following the hierarchical path from the global infographic down to spatial Tile (Image 1) and the corresponding atomic fact, we can identify both the visual layout context and the specific data point. The extracted fact explicitly states that the technology sector's revenue in 2025 was 450 million USD. Therefore, the answer is: f_answers(["450 million USD"])
+Explanation = The original image and its summary provide infographic context, while the associated fact explicitly states that the technology sector generated 450 million USD in 2025. Therefore, the answer is: f_answers(["450 million USD"])
 """
 
 

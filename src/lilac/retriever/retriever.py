@@ -48,14 +48,14 @@ RUN_CONFIG_PATH          = f"{REPO_ROOT}/config/retriever/retriever_config.yaml"
 
 class Retriever:
     
-    def __init__(self, config_path: str = RUN_CONFIG_PATH):
+    def __init__(self, config_path: str = RUN_CONFIG_PATH, cli_args=None):
         
         # 1) Load default config from YAML
         self._metadata_config = read_yaml(METADATA_CONFIG_PATH)
         default_config        = read_yaml(config_path)
         
         # 2) Parse command line arguments
-        args = parse_arguments()
+        args = parse_arguments(cli_args)
         
         print(args)
         
@@ -400,6 +400,8 @@ class Retriever:
             elif self._run_function_mode == "tree_traversal":
                 self.retrieve_tree_traversal(qid, question_embedding)
                 # print(f"tree_traversal")
+            elif self._run_function_mode == "infovqa_ablation":
+                self.retrieve_infovqa_ablation(qid, question_embedding)
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
@@ -736,6 +738,154 @@ class Retriever:
                 "collapsed_node_search(ms)": (search_done - started) * 1000,
                 "tree_traversal(ms)": (traversal_done - search_done) * 1000,
             },
+        }
+        append_to_jsonl_file(
+            result, os.path.join(self._output_dir, self._run_name + ".jsonl")
+        )
+        return result
+
+    def retrieve_infovqa_ablation(
+        self,
+        qid: str,
+        query_vec: torch.Tensor,
+        variant: str | None = None,
+        root_k: int | None = None,
+        tile_k: int | None = None,
+        k_ret: int | None = None,
+    ):
+        """Run one InfoVQA fact-candidate ablation.
+
+        Ranking, embeddings, graph expansion, and output path format are shared
+        with tree traversal. Only the fact candidate set differs by variant.
+        """
+        variants = {"flat_facts", "root_facts", "tile_facts", "root_tile_facts"}
+        variant = variant or self._run_config["parameters"].get(
+            "ablation_variant", "root_tile_facts"
+        )
+        if variant not in variants:
+            raise ValueError(f"Unknown InfoVQA ablation variant: {variant}")
+        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 10))
+        root_k = root_k or int(
+            self._run_config["parameters"].get("ablation_root_k", 100)
+        )
+        tile_k = tile_k or int(
+            self._run_config["parameters"].get("ablation_tile_k", root_k)
+        )
+        started = time.perf_counter()
+
+        top_index = self.level_to_indexer["top"]
+        low_index = self.level_to_indexer["low"]
+        fact_index = self.level_to_indexer.get("fact")
+        if fact_index is None or fact_index.get_embeddings() is None:
+            raise RuntimeError("InfoVQA ablation requires tile_fact embeddings.")
+
+        roots = [
+            (self._target_parts(item["target"]), float(item["score"]))
+            for item in top_index.knn_search(
+                query_vec, top_k=top_index.get_embeddings().shape[0]
+            )
+            if self._is_infographic_target(item["target"])
+        ][:root_k]
+        tiles = [
+            (self._target_parts(item["target"]), float(item["score"]))
+            for item in low_index.knn_search(
+                query_vec, top_k=low_index.get_embeddings().shape[0]
+            )
+            if self._is_tile_target(item["target"])
+        ][:tile_k]
+
+        root_scores = dict(roots)
+        tile_scores = dict(tiles)
+        ranked_nodes = sorted(
+            {target: score for target, score in roots + tiles}.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:k_ret]
+        fact_to_parent: dict[tuple[str, str], tuple[tuple[str, str], tuple[str, str]]] = {}
+        root_to_tiles: dict[tuple[str, str], list[tuple[str, str]]] = {}
+        for filename, edges in self.graph.intra_document_edges.items():
+            for parent_id, children in edges.items():
+                parent = (filename, str(parent_id))
+                for child in children:
+                    child_target = self._target_parts(child.get_gcid())
+                    if self._is_tile_target(child_target):
+                        root_to_tiles.setdefault(parent, []).append(child_target)
+                        for fact in self.graph.intra_document_edges.get(
+                            filename, {}
+                        ).get(child_target[1], []):
+                            fact_target = self._target_parts(fact.get_gcid())
+                            if self._is_fact_target(fact_target):
+                                fact_to_parent[fact_target] = (parent, child_target)
+
+        candidate_facts: set[tuple[str, str]] = set()
+        if variant == "flat_facts":
+            candidate_facts = {
+                self._target_parts(target)
+                for target in (fact_index._idx2target or {}).values()
+                if self._is_fact_target(target)
+            }
+        elif variant == "root_facts":
+            for root in root_scores:
+                candidate_facts.update(
+                    fact for fact, (parent, _) in fact_to_parent.items()
+                    if parent == root
+                )
+        elif variant == "tile_facts":
+            candidate_facts.update(
+                fact for fact, (_, tile) in fact_to_parent.items()
+                if tile in tile_scores
+            )
+        else:
+            selected_nodes = {target for target, _ in ranked_nodes}
+            candidate_facts.update(
+                fact for fact, (parent, tile) in fact_to_parent.items()
+                if parent in selected_nodes or tile in selected_nodes
+            )
+
+        indexed_fact_targets = {}
+        for indexed_target in (fact_index._idx2target or {}).values():
+            normalized = self._target_parts(indexed_target)
+            if self._is_fact_target(normalized):
+                indexed_fact_targets[normalized] = tuple(indexed_target)
+        fact_embeddings = fact_index.get_embeddings().float()
+        query = query_vec.to(fact_embeddings.device, dtype=fact_embeddings.dtype)
+        scored = []
+        for fact in candidate_facts:
+            try:
+                row = fact_index.get_vector_idx_for_target(indexed_fact_targets[fact])
+            except KeyError:
+                continue
+            score = float(torch.nn.functional.cosine_similarity(
+                fact_embeddings[row].reshape(1, -1), query.reshape(1, -1)
+            ).item())
+            root, tile = fact_to_parent.get(fact, ((fact[0], "i_1"), fact))
+            scored.append({"fact": fact, "root": root, "tile": tile, "score": score})
+        scored.sort(key=lambda item: item["score"], reverse=True)
+        if variant == "root_tile_facts":
+            selected_roots = [target for target, _ in ranked_nodes if target in root_scores]
+            selected_tiles = [target for target, _ in ranked_nodes if target in tile_scores]
+        elif variant == "root_facts":
+            selected_roots, selected_tiles = list(root_scores), []
+        elif variant == "tile_facts":
+            selected_roots, selected_tiles = [], list(tile_scores)
+        else:
+            selected_roots, selected_tiles = [], []
+        paths = []
+        for item in scored[:k_ret]:
+            nodes = [list(item["root"]), list(item["tile"]), list(item["fact"])]
+            paths.append({
+                "nodes": nodes,
+                "edges": [[item["root"][1], item["tile"][1]], [item["tile"][1], item["fact"][1]]],
+                "score": item["score"], "specific_scores": {}, "type": "path",
+            })
+        finished = time.perf_counter()
+        result = {
+            "qid": qid, "retrieved_paths": paths, "ablation_variant": variant,
+            "candidate_facts": [list(fact) for fact in sorted(candidate_facts)],
+            "candidate_roots": [list(root) for root in selected_roots],
+            "candidate_tiles": [list(tile) for tile in selected_tiles],
+            "num_candidate_facts": len(candidate_facts),
+            "time": {"retrieval_time(ms)": (finished - started) * 1000},
         }
         append_to_jsonl_file(
             result, os.path.join(self._output_dir, self._run_name + ".jsonl")
@@ -1534,7 +1684,7 @@ def main():
     retriever.run()
     return
     
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(argv=None) -> argparse.Namespace:
     """
     Parse command-line arguments, each one overriding the default YAML config.
     """
@@ -1552,7 +1702,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--run_mode",
         type=str,
-        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction", "tree_traversal", "mcts"],
+        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction", "tree_traversal", "mcts", "infovqa_ablation"],
         default=None,
         help="One of single_knn, single_topdown, decomposed_topdown, late_interaction."
     )
@@ -1627,7 +1777,7 @@ def parse_arguments() -> argparse.Namespace:
         help="Override for 'target_level' in config."
     )
     
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     return args
 
@@ -1655,6 +1805,7 @@ def auto_generate_run_name(config: Dict[str, Any]) -> str:
         "single_topdown":     ["beam_width",   "top_k"],
         "decomposed_topdown": ["beam_width",   "top_k"],
         "late_interaction":   ["beam_width",   "hop_mode", "target_level", "top_k"],
+        "infovqa_ablation":   ["top_k", "ablation_root_k", "ablation_tile_k"],
     }
 
     # Find relevant params. If run_mode is not recognized,

@@ -124,7 +124,12 @@ class VQABenchmarkEnd2EndAccuracyEvaluator(End2EndAccuracyEvaluator):
         for qid in qids:
             # predicted answer (string) from generation file
             pred_answer_raw = self._generation_results.get_predicted_answers_by_qid(qid)
-            pred_answer = str(pred_answer_raw).strip()
+            pred_answer = ""
+            # Xử lý an toàn: nếu là list thì lấy phần tử đầu, nếu là string thì giữ nguyên
+            if isinstance(pred_answer_raw, list):
+                pred_answer = str(pred_answer_raw[0]).strip() if pred_answer_raw else ""
+            else:
+                pred_answer = str(pred_answer_raw).strip()
 
             # gold answers list from benchmark object
             gold_answers = [str(ans).strip() for ans in self._qid_to_answers_list[qid]]

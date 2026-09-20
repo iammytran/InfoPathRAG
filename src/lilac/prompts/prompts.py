@@ -23,6 +23,8 @@ Return a SHORT answer to the question using the given evidences, using f_answers
 
 
 
+
+
 DEMONSTRATION_PROMPT = """
 /*
 [Table]
@@ -111,7 +113,18 @@ Explanation = The South Asia passage identifies Afghanistan as part of the subco
 
 
 """
+INSTRUCTION_PROMPT_PATH = """
+You are an expert multimodal reasoning assistant specialized in analyzing infographics. 
+You will be provided with a hierarchical path retrieved from an infographic document, consisting of:
+1. Root: The global infographic layout overview.
+2. Tile: A specific spatial tile containing regional visual elements.
+3. Fact: An extracted atomic fact stating precise text or data points.
 
+Your task is to analyze the given hierarchical path and answer the user's question. 
+- Use the contextual provenance provided by the path to combine global layout awareness, local visual cues, and fine-grained textual evidence.
+- Avoid hallucinations and stick strictly to the facts presented within the path.
+- Provide a brief explanation of how the path leads to the answer, and output the final answer using the format: f_answers(["your_answer"]).
+"""
 
 DEMONSTRATION_PROMPT_PATH = """
 /*

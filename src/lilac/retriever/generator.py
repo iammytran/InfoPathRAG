@@ -11,6 +11,7 @@ import tempfile
 import shutil
 import re
 import tempfile
+from pathlib import Path
 
 from typing import Dict, Any, List
 from tqdm import tqdm
@@ -18,6 +19,8 @@ from tqdm import tqdm
 # --------------- Existing imports from your code base ---------------
 from src.lilac.basic_class.graph import Graph
 from src.lilac.basic_class.component import Component
+from src.lilac.basic_class.image import Image
+from src.lilac.basic_class.text import Text
 from src.experiment.utils.constants import BenchmarkType, AlgorithmName
 from src.experiment.parser.retrieval_result_parser import parse_retrieval_results
 from src.utils.utils import (
@@ -28,6 +31,7 @@ from src.models.mllm.qwen2_5_vl_7b import Qwen2_5_VL
 from src.lilac.prompts.prompts import (
     INSTRUCTION_PROMPT_NONIMAGE,
     INSTRUCTION_PROMPT_IMAGE,
+    INSTRUCTION_PROMPT_PATH,
     DEMONSTRATION_PROMPT,
     DEMONSTRATION_PROMPT_PATH,
     PAGE_PROMPT
@@ -119,9 +123,9 @@ class Generator:
         self.run_name          = config["run_name"]
         self.target_dataset    = config["target_dataset"]
         self.generation_model  = config["generation_model"]
-        self.retrieval_results_path = "/workspace/LILaC/algorithm_results/LILaC/InfoVQA/retrieval/info_vqa_tree_traversal/info_vqa_tree_traversal.jsonl"
+        self.retrieval_results_path = "/workspace/LILaC/algorithm_results/LILaC/InfoVQA/retrieval_backup/info_vqa_tree_traversal_copy/info_vqa_tree_traversal.jsonl"
         self.num_components    = config["num_components"]
-        self.num_paths         = config.get("num_paths", self.num_components)
+        self.num_paths         = 3
         self.use_retrieved_paths = config.get("use_retrieved_paths", False)
         self.force_overwrite   = config["force_overwrite"]
         self.num_gpus          = config["num_gpus"]
@@ -260,7 +264,7 @@ class Generator:
         print(f"[Generator] Built {len(tasks)} tasks.")
         return tasks
 
-    def _load_retrieval_results(self) -> Dict[str, List[List[str]]]:
+    def _load_retrieval_results(self) -> Dict[str, List[Any]]:
         
         print("[Generator] Loading retrieval results...")
         
@@ -289,9 +293,10 @@ class Generator:
         out_map = {}
         for qid, srres in qid_to_rresult.items():
             if self.use_retrieved_paths and srres.get_retrieved_paths():
-                top = self._components_from_paths(
-                    srres.get_retrieved_paths()[: self.num_paths]
-                )
+                print(f"lấy paths")
+                print(f"self.num_paths: {self.num_paths}")
+                top = srres.get_retrieved_paths()[: self.num_paths]
+                print(f"top: {top}")
             else:
                 top = srres.get_retrieved_components()[: self.num_components]
             out_map[qid] = top
@@ -299,34 +304,19 @@ class Generator:
         print(f"[Generator] Loaded {len(out_map)} retrieval results.")
         return out_map
 
-    @staticmethod
-    def _components_from_paths(paths: List[Dict[str, Any]]) -> List[tuple[str, str]]:
-        """Flatten top-k paths into ordered, unique graph component targets."""
-        components = []
-        seen = set()
-        for path in paths:
-            for node in path.get("nodes", []):
-                if len(node) == 2:
-                    target = (str(node[0]), str(node[1]))
-                elif len(node) == 3:
-                    target = (str(node[0]), str(node[2]))
-                else:
-                    raise ValueError(f"Unexpected path node format: {node!r}")
-                if target not in seen:
-                    seen.add(target)
-                    components.append(target)
-        return components
-
-    def build_prompt(self, qid: str, top_gcids: List[List[str]]) -> tuple[str, List[str]]:
+    def build_prompt(self, qid: str, top_gcids: List[Any]) -> tuple[str, List[str]]:
         """ Return (text_prompt, image_paths). """
         
         question_text = self.qid_to_question[qid]
-        
-        if type(top_gcids[0]) == tuple:
+
+        if not top_gcids:
+            raise ValueError(f"No retrieved results found for question {qid}.")
+
+        if isinstance(top_gcids[0], tuple):
             if top_gcids[0][0] in top_gcids[0][1]:
                 top_gcids = [it[1] for it in top_gcids]
         
-        if type(top_gcids[0]) == str:
+        if isinstance(top_gcids[0], str):
             
             # image_components is read from datasets/<DS>/ (input); image_summaries are pipeline artifacts.
             self.images_dir = os.path.join(dataset_root(self._metadata_config, self.target_dataset), self.images_subpath, "dev")
@@ -361,16 +351,75 @@ class Generator:
             image_paths = []
             next_image_idx = 1
             
-            for gcid in top_gcids:
-                # expand if needed
-                filename, component_id = gcid
-                document_filename = self._resolve_graph_document_filename(filename)
-                component: Component = self.graph.get_component_by_gcid(document_filename, component_id)
+            if isinstance(top_gcids[0], dict):
+                for path_idx, path in enumerate(top_gcids, start=1):
+                    serialized_path = [f"/*", f"[Hierarchical Path {path_idx}]"]
+                    for node_idx, node in enumerate(path.get("nodes", [])):
+                        print(f"node_idx: {node_idx}")
+                        print(f"node: {node}")
+                        if len(node) == 2:
+                            filename, component_id = node
+                        elif len(node) == 3:
+                            filename, component_id = node[0], node[2]
+                        else:
+                            raise ValueError(f"Unexpected path node format: {node!r}")
 
-                serialized_text, cmp_image_paths, updated_idx = component.serialize_into_prompt(next_image_idx)
-                serialized_parts.append(serialized_text)
-                image_paths.extend(cmp_image_paths)
-                next_image_idx = updated_idx
+                        document_filename = self._resolve_graph_document_filename(str(filename))
+                        component: Component = self.graph.get_component_by_gcid(
+                            document_filename, str(component_id)
+                        )
+                        if node_idx == 0:
+                            label = "Root (Global Infographic)"
+                        elif isinstance(component, Image):
+                            label = "Tile"
+                        else:
+                            label = "Atomic Fact"
+
+                        if isinstance(component, Image):
+                            image_ref = ""
+                            image_path = self._resolve_prompt_image_path(
+                                component, str(component_id)
+                            )
+                            print(f"image_path: {image_path}")
+                            if image_path is not None:
+                                image_ref = f"<Image {next_image_idx}>"
+
+                                image_paths.append(image_path)
+                                next_image_idx += 1
+                            caption = component.component_obj.get("caption", {}).get(
+                                "text", ""
+                            )
+                            if node_idx == 0:
+                                description = (
+                                    f"{component.get_document_title()} "
+                                    f"{image_ref} ({caption})"
+                                ).strip()
+                            else:
+                                description = f"{image_ref} ({caption})".strip()
+                        elif isinstance(component, Text):
+                            description = f'"{component.text}"'
+                        else:
+                            serialized_text, cmp_image_paths, updated_idx = (
+                                component.serialize_into_prompt(next_image_idx)
+                            )
+                            description = serialized_text.strip()
+                            image_paths.extend(cmp_image_paths)
+                            next_image_idx = updated_idx
+
+                        serialized_path.append(f"- {label}: {description}")
+
+                    serialized_path.append("*/")
+                    serialized_parts.append("\n".join(serialized_path))
+            else:
+                for gcid in top_gcids:
+                    filename, component_id = gcid
+                    document_filename = self._resolve_graph_document_filename(filename)
+                    component: Component = self.graph.get_component_by_gcid(document_filename, component_id)
+
+                    serialized_text, cmp_image_paths, updated_idx = component.serialize_into_prompt(next_image_idx)
+                    serialized_parts.append(serialized_text)
+                    image_paths.extend(cmp_image_paths)
+                    next_image_idx = updated_idx
 
             # choose prompt
             if len(image_paths) > 0:
@@ -378,9 +427,11 @@ class Generator:
             else:
                 instruction_prompt = INSTRUCTION_PROMPT_NONIMAGE
 
+            print(f"serialized_parts: {serialized_parts}")
+
             # combine
             text_prompt = (
-                instruction_prompt
+                INSTRUCTION_PROMPT_PATH
                 + DEMONSTRATION_PROMPT_PATH
                 + "\n"
                 + "\n".join(serialized_parts)
@@ -388,10 +439,45 @@ class Generator:
                 + f"Question = {question_text}\nThe answer is: "
             )
 
+
+
         if self.text_only:
             image_paths = []
         
         return text_prompt, image_paths
+
+    def _resolve_prompt_image_path(
+        self, component: Image, component_id: str
+    ) -> str | None:
+        """Resolve original and tile images from their generation-time directories."""
+        filename = component.component_obj.get("filename")
+        if not filename:
+            return None
+
+        if component_id == "i_1":
+            image_dir = Path("/workspace/LILaC/datasets/InfoVQA/image_components/test")
+        elif "_t" in component_id:
+            image_dir = Path(
+                "/workspace/LILaC/artifacts_backup/artifacts/InfoVQA/"
+                "tiles_after_process"
+            )
+        else:
+            return component._get_image_abs_path(filename)
+
+        basename = Path(str(filename)).name
+        direct_path = image_dir / basename
+        if direct_path.is_file():
+            return str(direct_path)
+
+        stem = Path(basename).stem
+        matches = sorted(path for path in image_dir.rglob(f"{stem}.*") if path.is_file())
+        if matches:
+            return str(matches[0])
+
+        raise FileNotFoundError(
+            f"Image for component {component_id} was not found in {image_dir}: "
+            f"{basename}"
+        )
 
     def _resolve_graph_document_filename(self, filename: str) -> str:
         """Resolve retrieval filenames against the keys stored by the graph.

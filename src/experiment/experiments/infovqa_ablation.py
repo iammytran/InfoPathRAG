@@ -1,8 +1,4 @@
-"""InfoVQA fact-candidate ablation.
-
-Validation selects the tuple (root-k, tile-k, final-k). Test refuses to run
-without the selection file, preventing accidental test-set tuning.
-"""
+"""Run the InfoVQA fact-candidate ablation over the complete test split."""
 
 import argparse
 import json
@@ -10,7 +6,6 @@ import os
 import statistics
 from pathlib import Path
 
-from src.lilac.retriever.retriever import Retriever
 from src.utils.utils import REPO_ROOT, read_json_or_jsonl
 
 
@@ -36,6 +31,8 @@ def _gold(qas):
 def _metrics(logs):
     recalls, reciprocal = [], []
     for item in logs:
+        if item["infographic_correct"] is None:
+            continue
         docs = item["retrieved_infographics"]
         gold = item["infographic_correct"]
         recalls.append(float(gold in docs[:3]))
@@ -43,10 +40,14 @@ def _metrics(logs):
             reciprocal.append(1.0 / (docs[:10].index(gold) + 1))
         except ValueError:
             reciprocal.append(0.0)
+    if not recalls:
+        return None, None
     return sum(recalls) / len(recalls), sum(reciprocal) / len(reciprocal)
 
 
 def _run(args):
+    from src.lilac.retriever.retriever import Retriever
+
     qas = read_json_or_jsonl(args.qa_path)
     gold = _gold(qas)
     retriever = Retriever(
@@ -57,17 +58,30 @@ def _run(args):
             "--force_overwrite", "True",
         ]
     )
-    qids = set(gold)
+    # Run every question in the selected QA file. Do not restrict execution
+    # to questions with evidence labels; test QA files may be unlabeled.
+    qids = {str(item["qid"]) for item in qas}
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     logs_by_variant = {}
+    selected_qids = [
+        qid for qid in retriever._questions_manager.get_qid_list()
+        if str(qid) in qids
+    ]
+    print(
+        f"[ablation] Running {len(selected_qids)} questions across "
+        f"{len(VARIANTS)} variants",
+        flush=True,
+    )
     for variant in VARIANTS:
         # Keep raw retrieval results separate; each call appends one JSONL row.
         retriever._run_name = f"infovqa_ablation_{args.split}_{variant}"
         logs = []
-        for qid in retriever._questions_manager.get_qid_list():
-            if str(qid) not in qids:
-                continue
+        for index, qid in enumerate(selected_qids, start=1):
+            print(
+                f"[ablation] {variant}: {index}/{len(selected_qids)} qid={qid}",
+                flush=True,
+            )
             question = retriever._questions_manager.get_question_instance_by_qid(qid)
             result = retriever.retrieve_infovqa_ablation(
                 qid=str(qid), query_vec=question.get_embedding(),
@@ -79,13 +93,13 @@ def _run(args):
                 doc = _doc(path["nodes"][0][0])
                 if doc not in docs:
                     docs.append(doc)
-            correct = gold[str(qid)]
+            correct = gold.get(str(qid))
             candidate_roots = {_doc(root[0]) for root in result["candidate_roots"]}
             selected = candidate_roots if variant == "root_facts" else (
                 {_doc(tile[0]) for tile in result["candidate_tiles"]}
                 if variant == "tile_facts" else candidate_roots | {_doc(tile[0]) for tile in result["candidate_tiles"]}
             )
-            rank = docs.index(correct) + 1 if correct in docs else None
+            rank = docs.index(correct) + 1 if correct and correct in docs else None
             logs.append({
                 "qid": str(qid), "infographic_correct": correct,
                 "candidate_infographics": sorted(selected) if variant != "flat_facts" else None,
@@ -95,10 +109,17 @@ def _run(args):
                 ),
                 "num_candidate_facts": result["num_candidate_facts"],
                 "retrieval_time_ms": result["time"]["retrieval_time(ms)"],
-                "correct": correct in docs[:args.final_k],
+                "correct": bool(correct and correct in docs[:args.final_k]),
                 "error_type": (
-                    None if correct in docs[:args.final_k]
-                    else ("ranking_miss" if variant == "flat_facts" or correct in selected else "candidate_miss")
+                    None if correct and correct in docs[:args.final_k]
+                    else (
+                        None if correct is None
+                        else (
+                            "ranking_miss"
+                            if variant == "flat_facts" or correct in selected
+                            else "candidate_miss"
+                        )
+                    )
                 ),
                 "candidate_selection_not_applicable": variant == "flat_facts",
                 "retrieved_infographics": docs,
@@ -120,35 +141,25 @@ def _run(args):
     with (output / f"{args.split}_summary.json").open("w") as handle:
         json.dump(summary, handle, indent=2)
 
-    if args.split == "validation":
-        best = max(summary, key=lambda row: (row["MRR@10"], row["Recall@3"]))
-        selection = {
-            "root_k": args.root_k, "tile_k": args.tile_k, "final_k": args.final_k,
-            "selected_variant": best["variant"], "validation_summary": best,
-        }
-        with (output / "selected_top_k.json").open("w") as handle:
-            json.dump(selection, handle, indent=2)
     return summary
 
 
 def main():
-    parser = argparse.ArgumentParser(description="InfoVQA candidate-set ablation")
-    parser.add_argument("--split", choices=("validation", "test"), required=True)
-    parser.add_argument("--qa-path", required=True)
+    parser = argparse.ArgumentParser(
+        description="InfoVQA candidate-set ablation over the complete test split"
+    )
+    parser.add_argument("--split", choices=("test",), default="test")
+    parser.add_argument(
+        "--qa-path",
+        default=os.path.join(REPO_ROOT, "datasets", "InfoVQA", "QAs_test.json"),
+    )
     parser.add_argument("--output-dir", default=os.path.join(REPO_ROOT, "algorithm_results", "LILaC", "InfoVQA", "ablation"))
     parser.add_argument("--root-k", type=int, default=100)
     parser.add_argument("--tile-k", type=int, default=100)
     parser.add_argument("--final-k", type=int, default=10)
-    parser.add_argument("--selection-file")
     args = parser.parse_args()
-    if args.split == "test":
-        if not args.selection_file:
-            parser.error("--selection-file is required for test (run validation first)")
-        with open(args.selection_file) as handle:
-            selection = json.load(handle)
-        args.root_k, args.tile_k, args.final_k = (
-            selection["root_k"], selection["tile_k"], selection["final_k"]
-        )
+    if os.path.basename(os.path.abspath(args.qa_path)) != "QAs_test.json":
+        parser.error("--qa-path must point to InfoVQA/QAs_test.json")
     summary = _run(args)
     print(json.dumps(summary, indent=2))
 

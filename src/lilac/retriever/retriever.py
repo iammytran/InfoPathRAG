@@ -84,6 +84,10 @@ class Retriever:
             params["target_level"] = args.parameter_targetlevel
         if args.parameter_topk is not None:
             params["top_k"] = args.parameter_topk
+        if args.parameter_rootk is not None:
+            params["tree_traversal_root_k"] = args.parameter_rootk
+        if args.parameter_tilek is not None:
+            params["tree_traversal_tile_k"] = args.parameter_tilek
         default_config["parameters"] = params
         
         if args.lowlevel_text is not None:
@@ -114,6 +118,8 @@ class Retriever:
         self._summaries_dir         = artifact_subpath(self._metadata_config, self._target_dataset, "image_summaries_dirname", "dev")
         
         self._target_embedder       = self._run_config["embedding_model"]
+        self._infovqa_fact_to_parent = None
+        self._infovqa_indexed_fact_targets = None
         
         # Current run
         self._run_name              = self._run_config["run_name"]
@@ -352,8 +358,48 @@ class Retriever:
                 with open(self._graph_path, "wb") as f:
                     pickle.dump(self.graph, f)
                 print(f"[Retriever] Graph saved to {self._graph_path}")
-                
         return
+
+    def _get_infovqa_ablation_maps(self, fact_index):
+        """Build graph/index lookup maps once for all ablation queries."""
+        if (
+            self._infovqa_fact_to_parent is not None
+            and self._infovqa_indexed_fact_targets is not None
+        ):
+            return (
+                self._infovqa_fact_to_parent,
+                self._infovqa_indexed_fact_targets,
+            )
+
+        fact_to_parent = {}
+        for filename, edges in self.graph.intra_document_edges.items():
+            for parent_id, children in edges.items():
+                parent = (filename, str(parent_id))
+                for child in children:
+                    child_target = self._target_parts(child.get_gcid())
+                    if not self._is_tile_target(child_target):
+                        continue
+                    for fact in self.graph.intra_document_edges.get(
+                        filename, {}
+                    ).get(child_target[1], []):
+                        fact_target = self._target_parts(fact.get_gcid())
+                        if self._is_fact_target(fact_target):
+                            fact_to_parent[fact_target] = (parent, child_target)
+
+        indexed_fact_targets = {}
+        for indexed_target in (fact_index._idx2target or {}).values():
+            normalized = self._target_parts(indexed_target)
+            if self._is_fact_target(normalized):
+                indexed_fact_targets[normalized] = tuple(indexed_target)
+
+        self._infovqa_fact_to_parent = fact_to_parent
+        self._infovqa_indexed_fact_targets = indexed_fact_targets
+        print(
+            "[Retriever] Prepared InfoVQA ablation maps: "
+            f"{len(fact_to_parent):,} facts, {len(indexed_fact_targets):,} indexed facts",
+            flush=True,
+        )
+        return fact_to_parent, indexed_fact_targets
         
         
     
@@ -585,8 +631,17 @@ class Retriever:
         """
         k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 100))
         started = time.perf_counter()
-        top_k_nodes = int(
-            self._run_config["parameters"].get("tree_traversal_top_k", k_ret)
+        root_k = int(
+            self._run_config["parameters"].get(
+                "tree_traversal_root_k",
+                self._run_config["parameters"].get("tree_traversal_top_k", k_ret),
+            )
+        )
+        tile_k = int(
+            self._run_config["parameters"].get(
+                "tree_traversal_tile_k",
+                self._run_config["parameters"].get("tree_traversal_top_k", k_ret),
+            )
         )
 
         top_results = [
@@ -595,15 +650,14 @@ class Retriever:
                 top_k=self.level_to_indexer["top"].get_embeddings().shape[0],
             )
             if self._is_infographic_target(result["target"])
-        ]
+        ][:root_k]
         tile_results = [
             result for result in self.level_to_indexer["low"].knn_search(
                 query_vec,
                 top_k=self.level_to_indexer["low"].get_embeddings().shape[0],
             )
             if self._is_tile_target(result["target"])
-        ][:top_k_nodes]
-        top_results = top_results[:top_k_nodes]
+        ][:tile_k]
         logging.info(f"top_results: {top_results}")
         logging.info(f"tile_results: {tile_results}")
         search_done = time.perf_counter()
@@ -801,21 +855,9 @@ class Retriever:
             key=lambda item: item[1],
             reverse=True,
         )[:k_ret]
-        fact_to_parent: dict[tuple[str, str], tuple[tuple[str, str], tuple[str, str]]] = {}
-        root_to_tiles: dict[tuple[str, str], list[tuple[str, str]]] = {}
-        for filename, edges in self.graph.intra_document_edges.items():
-            for parent_id, children in edges.items():
-                parent = (filename, str(parent_id))
-                for child in children:
-                    child_target = self._target_parts(child.get_gcid())
-                    if self._is_tile_target(child_target):
-                        root_to_tiles.setdefault(parent, []).append(child_target)
-                        for fact in self.graph.intra_document_edges.get(
-                            filename, {}
-                        ).get(child_target[1], []):
-                            fact_target = self._target_parts(fact.get_gcid())
-                            if self._is_fact_target(fact_target):
-                                fact_to_parent[fact_target] = (parent, child_target)
+        fact_to_parent, indexed_fact_targets = self._get_infovqa_ablation_maps(
+            fact_index
+        )
 
         candidate_facts: set[tuple[str, str]] = set()
         if variant == "flat_facts":
@@ -842,22 +884,20 @@ class Retriever:
                 if parent in selected_nodes or tile in selected_nodes
             )
 
-        indexed_fact_targets = {}
-        for indexed_target in (fact_index._idx2target or {}).values():
-            normalized = self._target_parts(indexed_target)
-            if self._is_fact_target(normalized):
-                indexed_fact_targets[normalized] = tuple(indexed_target)
         fact_embeddings = fact_index.get_embeddings().float()
         query = query_vec.to(fact_embeddings.device, dtype=fact_embeddings.dtype)
+        facts = [
+            fact for fact in candidate_facts if fact in indexed_fact_targets
+        ]
+        rows = [
+            fact_index.get_vector_idx_for_target(indexed_fact_targets[fact])
+            for fact in facts
+        ]
+        scores = torch.nn.functional.cosine_similarity(
+            fact_embeddings[rows], query.unsqueeze(0), dim=1
+        ).tolist()
         scored = []
-        for fact in candidate_facts:
-            try:
-                row = fact_index.get_vector_idx_for_target(indexed_fact_targets[fact])
-            except KeyError:
-                continue
-            score = float(torch.nn.functional.cosine_similarity(
-                fact_embeddings[row].reshape(1, -1), query.reshape(1, -1)
-            ).item())
+        for fact, score in zip(facts, scores):
             root, tile = fact_to_parent.get(fact, ((fact[0], "i_1"), fact))
             scored.append({"fact": fact, "root": root, "tile": tile, "score": score})
         scored.sort(key=lambda item: item["score"], reverse=True)
@@ -1726,6 +1766,18 @@ def parse_arguments(argv=None) -> argparse.Namespace:
         type=int,
         default=None,
         help="Override for 'top_k' in config (default=200)."
+    )
+    parser.add_argument(
+        "--parameter_rootk",
+        type=int,
+        default=None,
+        help="Number of top-level root candidates for tree traversal.",
+    )
+    parser.add_argument(
+        "--parameter_tilek",
+        type=int,
+        default=None,
+        help="Number of tile candidates for tree traversal.",
     )
     parser.add_argument(
         "--parameter_beamwidth",

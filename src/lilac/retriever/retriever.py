@@ -85,9 +85,9 @@ class Retriever:
         if args.parameter_topk is not None:
             params["top_k"] = args.parameter_topk
         if args.parameter_rootk is not None:
-            params["tree_traversal_root_k"] = args.parameter_rootk
+            params["ablation_root_k"] = args.parameter_rootk
         if args.parameter_tilek is not None:
-            params["tree_traversal_tile_k"] = args.parameter_tilek
+            params["ablation_tile_k"] = args.parameter_tilek
         default_config["parameters"] = params
         
         if args.lowlevel_text is not None:
@@ -138,7 +138,7 @@ class Retriever:
         # Initiate multimodal graph
         self.initiate_graph()
         
-        if self._run_function_mode == "late_interaction" or self._run_function_mode == "iterative_late_interaction":
+        if self._run_function_mode == "iterative_late_interaction":
             gpu_num = self._run_config["low_level_embeddings"].get("gpu_num", 0)
             device_str = f"cuda:{gpu_num}" if torch.cuda.is_available() and gpu_num >= 0 else "cpu"
             self._subindexer_low = Subindexer()
@@ -267,97 +267,78 @@ class Retriever:
         return
     
     def initiate_graph(self):
-        if self._run_function_mode != "single_knn":
-            component_dir = artifact_subpath(
-                self._metadata_config,
-                self._target_dataset,
-                "component_dirname",
+        component_dir = artifact_subpath(
+            self._metadata_config,
+            self._target_dataset,
+            "component_dirname",
+        )
+        self._graph_path = os.path.join(component_dir, "graph.pickle")
+        os.makedirs(component_dir, exist_ok=True)
+
+        # The tile manifest is the source of truth for the three-level
+        # InfoVQA graph; do not fall back to parse_documents for it.
+        tile_manifest_candidates = (
+            os.path.join(self._benchmark_dir, "tiles", "manifest.json"),
+            os.path.join(REPO_ROOT, "datasets", "InfoVQA", "tiles", "manifest.json"),
+        )
+        tile_manifest = next(
+            (path for path in tile_manifest_candidates if os.path.exists(path)),
+            None,
+        )
+
+        use_tile_graph = (
+            self._target_dataset == "InfoVQA"
+            and tile_manifest is not None
+        )
+        facts_directory = os.path.join(
+            REPO_ROOT,
+            "artifacts",
+            self._target_dataset,
+            "facts_each_tile",
+        )
+
+        if check_file_exists(self._graph_path) and not use_tile_graph:
+            print("[Retriever] Loading existing graph …")
+            with open(self._graph_path, "rb") as f:
+                self.graph = pickle.load(f)
+            print(f"[Retriever] Graph loaded from {self._graph_path}")
+        else:
+            self.graph = Graph(
+                multimodal_documents_directory=self._parsed_documents_dir,
+                images_directory=REPO_ROOT if use_tile_graph else self._images_dir,
+                subimages_directory=self._subimages_dir,
+                summaries_directory=self._summaries_dir,
             )
-            self._graph_path = os.path.join(component_dir, "graph.pickle")
-            os.makedirs(component_dir, exist_ok=True)
-
-            # The tile manifest is the source of truth for the three-level
-            # InfoVQA graph; do not fall back to parse_documents for it.
-            tile_manifest_candidates = (
-                os.path.join(self._benchmark_dir, "tiles", "manifest.json"),
-                os.path.join(REPO_ROOT, "datasets", "InfoVQA", "tiles", "manifest.json"),
-            )
-            tile_manifest = next(
-                (path for path in tile_manifest_candidates if os.path.exists(path)),
-                None,
-            )
-
-            use_tile_graph = (
-                self._target_dataset == "InfoVQA"
-                and tile_manifest is not None
-            )
-            facts_directory = os.path.join(
-                REPO_ROOT,
-                "artifacts",
-                self._target_dataset,
-                "facts_each_tile",
-            )
-
-            if check_file_exists(self._graph_path) and not use_tile_graph:
-                print("[Retriever] Loading existing graph …")
-                with open(self._graph_path, "rb") as f:
-                    self.graph = pickle.load(f)
-                print(f"[Retriever] Graph loaded from {self._graph_path}")
-            else:
-                self.graph = Graph(
-                    multimodal_documents_directory = self._parsed_documents_dir,
-                    images_directory    = REPO_ROOT if use_tile_graph else self._images_dir,
-                    subimages_directory = self._subimages_dir,
-                    summaries_directory = self._summaries_dir
-                )
-                if use_tile_graph:
-                    print("use tile graph")
-                    # facts_directory = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile"
-                    tile_manifest = "/workspace/LILaC/artifacts/InfoVQA/facts_each_tile/manifest.json"
-                    self.graph.load_tile_manifest(tile_manifest, facts_directory)
-                    print(f"load tile successfully!")
-
-                    # print(f"self.graph.intra_document_edges.items(): {self.graph.intra_document_edges.items()}")
-                    documents_with_facts = 0
-                    for filename, edges in self.graph.intra_document_edges.items():
-                        tile_ids = [
-                            component_id
-                            for component_id in edges
-                            if component_id != "i_1"
-                            and "_t" in component_id
-                            and "_f" not in component_id
-                        ]
-                        if edges.get("i_1") and any(
-                            edges.get(tile_id) for tile_id in tile_ids
-                        ):
-                            documents_with_facts += 1
-
-                    # print(self.graph.get_inter_document_edges_dict())
-                    # print("manifest:", tile_manifest)
-                    # print("facts directory:", facts_directory)
-                    # print("exists:", os.path.exists(facts_directory))
-
-                    # for filename, edges in self.graph.intra_document_edges.items():
-                    #     print(f"\nDocument: {filename}")
-                    #     print("Edges:", edges)
-
-                    #     for component_id, children in edges.items():
-                    #         print(f"  {component_id} -> {children}")
-                    
-                    if not documents_with_facts:
-                        raise ValueError(
-                            "Tile manifest graph did not produce the expected "
-                            "i_1 -> tile -> fact hierarchy."
-                        )
-                    print(
-                        "[Retriever] Loaded three-level graph: "
-                        "original image -> tiles -> facts"
+            if use_tile_graph:
+                print("use tile graph")
+                tile_manifest = os.path.join(facts_directory, "manifest.json")
+                self.graph.load_tile_manifest(tile_manifest, facts_directory)
+                documents_with_facts = 0
+                for filename, edges in self.graph.intra_document_edges.items():
+                    tile_ids = [
+                        component_id for component_id in edges
+                        if component_id != "i_1"
+                        and "_t" in component_id
+                        and "_f" not in component_id
+                    ]
+                    if edges.get("i_1") and any(
+                        edges.get(tile_id) for tile_id in tile_ids
+                    ):
+                        documents_with_facts += 1
+                if not documents_with_facts:
+                    raise ValueError(
+                        "Tile manifest graph did not produce the expected "
+                        "i_1 -> tile -> fact hierarchy."
                     )
-                else:
-                    self.graph.parse_documents()
-                with open(self._graph_path, "wb") as f:
-                    pickle.dump(self.graph, f)
-                print(f"[Retriever] Graph saved to {self._graph_path}")
+                print(
+                    "[Retriever] Loaded three-level graph: "
+                    "original image -> tiles -> facts"
+                )
+            else:
+                self.graph.parse_documents()
+            with open(self._graph_path, "wb") as f:
+                pickle.dump(self.graph, f)
+            print(f"[Retriever] Graph saved to {self._graph_path}")
         return
 
     def _get_infovqa_ablation_maps(self, fact_index):
@@ -384,7 +365,9 @@ class Retriever:
                     ).get(child_target[1], []):
                         fact_target = self._target_parts(fact.get_gcid())
                         if self._is_fact_target(fact_target):
-                            fact_to_parent[fact_target] = (parent, child_target)
+                            fact_to_parent.setdefault(fact_target, []).append(
+                                (parent, child_target)
+                            )
 
         indexed_fact_targets = {}
         for indexed_target in (fact_index._idx2target or {}).values():
@@ -421,33 +404,17 @@ class Retriever:
             question_instance: Question = self._questions_manager.get_question_instance_by_qid(qid)
             question_embedding = question_instance.get_embedding()
             subquery_embeddings = question_instance.get_subquery_embedding_list(self._modality_mode)
-            if self._run_function_mode == "single_knn":
-                self._target_level = self._run_config["parameters"]["target_level"]
-                self.retrieve_single_unilevel(qid, question_embedding)
-                
-            elif self._run_function_mode == "single_topdown":
-                self._beam_width = self._run_config["parameters"]["beam_width"]
-                self.retrieve_single_topdown(qid, question_embedding)
-                
-            # elif self._run_function_mode == "decomposed_topdown":
-            #     self._beam_width = self._run_config["parameters"]["beam_width"]
-            #     self.retrieve_decomposed_topdown(qid, question_embedding, subquery_embeddings)
-                
-            elif self._run_function_mode == "late_interaction":
-                self._beam_width = self._run_config["parameters"]["beam_width"]
-                self.retrieve_late_interaction(qid, question_embedding, subquery_embeddings)
-                
-            elif self._run_function_mode == "iterative_late_interaction":
+            if self._run_function_mode == "iterative_late_interaction":
                 self._beam_width = self._run_config["parameters"]["beam_width"]
                 self._num_iterations = self._run_config["parameters"]["num_iterations"]
                 self.retrieve_iterative_late_interaction(qid, question_embedding, subquery_embeddings)
-            elif self._run_function_mode == "mcts":
-                self.retrieve_mcts(qid, question_embedding, subquery_embeddings)
-            elif self._run_function_mode == "tree_traversal":
-                self.retrieve_tree_traversal(qid, question_embedding)
-                # print(f"tree_traversal")
             elif self._run_function_mode == "infovqa_ablation":
                 self.retrieve_infovqa_ablation(qid, question_embedding)
+            else:
+                raise ValueError(
+                    f"Unsupported retrieval mode: {self._run_function_mode}. "
+                    "Use iterative_late_interaction or infovqa_ablation."
+                )
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
@@ -485,130 +452,6 @@ class Retriever:
             "_f" in component_id
         )
 
-    def _subquery_scores_for_target(self, indexer, target, subquery_embeddings):
-        """Return max-over-subqueries reward and each subquery's score."""
-        row = indexer.get_vector_idx_for_target(target)
-        vector = indexer.get_embeddings()[row].to(torch.float32)
-        scores = {}
-        for index, subquery in enumerate(subquery_embeddings, start=1):
-            value = torch.nn.functional.cosine_similarity(
-                vector.reshape(1, -1),
-                subquery.to(vector.device, dtype=torch.float32).reshape(1, -1),
-            ).item()
-            scores[str(index)] = float(value)
-        return (max(scores.values()) if scores else 0.0), scores
-
-    def retrieve_mcts(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        query_vec_list: List[torch.Tensor],
-        k_ret: int | None = None,
-    ):
-        """Retrieve tile→fact paths with a lightweight Monte Carlo tree search.
-
-        Tiles are seeded by the query embedding. Each simulation chooses one
-        unvisited fact using UCT; a fact reward is the maximum cosine score over
-        all supplied subquery vectors.
-        """
-        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 100))
-        simulations = int(self._run_config["parameters"].get("mcts_simulations", 64))
-        started = time.perf_counter()
-        tile_results = self.level_to_indexer["low"].knn_search(query_vec, top_k=2048)
-        top_tiles = []
-        seen_tiles = set()
-        for result in tile_results:
-            raw_target = tuple(result["target"])
-            if self._is_tile_target(raw_target):
-                target = self._target_parts(raw_target)
-                if target in seen_tiles:
-                    continue
-                seen_tiles.add(target)
-                top_tiles.append(target)
-                if len(top_tiles) == 5:
-                    break
-        tile_done = time.perf_counter()
-
-        fact_index = self.level_to_indexer.get("fact")
-        if fact_index is None or fact_index.get_embeddings() is None:
-            raise RuntimeError(
-                "MCTS requires tile_fact embeddings "
-                "(tile_fact.pt and tile_fact.json)."
-            )
-
-        indexed_fact_targets = {}
-        for indexed_target in (fact_index._idx2target or {}).values():
-            try:
-                normalized_target = self._target_parts(indexed_target)
-            except ValueError:
-                continue
-            if self._is_fact_target(normalized_target):
-                indexed_fact_targets[normalized_target] = tuple(indexed_target)
-
-        paths = []
-        for tile in top_tiles:
-            children = [
-                self._target_parts(child.get_gcid())
-                for child in self.graph.intra_document_edges.get(tile[0], {}).get(
-                    tile[1], []
-                )
-                if self._is_fact_target(child.get_gcid())
-            ]
-            if not children:
-                continue
-            visits = {fact: 0 for fact in children}
-            totals = {fact: 0.0 for fact in children}
-            best = {}
-            for _ in range(max(simulations, len(children))):
-                unvisited = [fact for fact in children if visits[fact] == 0]
-                if unvisited:
-                    fact = unvisited[0]
-                else:
-                    fact = max(
-                        children,
-                        key=lambda item: totals[item] / visits[item]
-                        + math.sqrt(2.0 * math.log(sum(visits.values()) + 1) / visits[item]),
-                    )
-                index_target = indexed_fact_targets.get(fact)
-                if index_target is None:
-                    continue
-                reward, specific = self._subquery_scores_for_target(
-                    fact_index, index_target, query_vec_list
-                )
-                visits[fact] += 1
-                totals[fact] += reward
-                best[fact] = {
-                    "score": reward,
-                    "specific_scores": {
-                        f"{qid}___{key}": value for key, value in specific.items()
-                    },
-                }
-            for fact, data in best.items():
-                paths.append({
-                    "nodes": [list(tile), list(fact)],
-                    "edges": [[tile[1], fact[1]]],
-                    "score": data["score"],
-                    "specific_scores": data["specific_scores"],
-                    "type": "path",
-                })
-        paths.sort(key=lambda item: item["score"], reverse=True)
-        paths = paths[:k_ret]
-        finished = time.perf_counter()
-        result = {
-            "qid": qid,
-            "retrieved_paths": paths,
-            "time": {
-                "retrieval_time(ms)": (finished - started) * 1000,
-                "find_top_tiles(ms)": (tile_done - started) * 1000,
-                "monte_carlo_tree_search(ms)": (finished - tile_done) * 1000,
-            },
-        }
-        append_to_jsonl_file(
-            result, os.path.join(self._output_dir, self._run_name + ".jsonl")
-        )
-        return result
-
-    @staticmethod
     def _is_infographic_target(target):
         return (
             isinstance(target, (list, tuple))
@@ -616,321 +459,388 @@ class Retriever:
             and str(target[1]) == "i_1"
         )
 
-    def retrieve_tree_traversal(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        k_ret: int | None = None,
-    ):
-        """Retrieve by collapsing infographic/tile search, then tree expansion.
-
-        The first stage searches the top-level infographic index and the
-        tile-only portion of the low-level index independently. The resulting
-        nodes are merged and deduplicated. The second stage follows graph
-        edges from those nodes and ranks only their descendant facts.
-        """
-        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 100))
-        started = time.perf_counter()
-        root_k = int(
-            self._run_config["parameters"].get(
-                "tree_traversal_root_k",
-                self._run_config["parameters"].get("tree_traversal_top_k", k_ret),
-            )
-        )
-        tile_k = int(
-            self._run_config["parameters"].get(
-                "tree_traversal_tile_k",
-                self._run_config["parameters"].get("tree_traversal_top_k", k_ret),
-            )
-        )
-
-        top_results = [
-            result for result in self.level_to_indexer["top"].knn_search(
-                query_vec,
-                top_k=self.level_to_indexer["top"].get_embeddings().shape[0],
-            )
-            if self._is_infographic_target(result["target"])
-        ][:root_k]
-        tile_results = [
-            result for result in self.level_to_indexer["low"].knn_search(
-                query_vec,
-                top_k=self.level_to_indexer["low"].get_embeddings().shape[0],
-            )
-            if self._is_tile_target(result["target"])
-        ][:tile_k]
-        logging.info(f"top_results: {top_results}")
-        logging.info(f"tile_results: {tile_results}")
-        search_done = time.perf_counter()
-
-        # Collapse the two candidate layers into one ranked candidate list.
-        # The top-k here is applied after combining infographic and tile
-        # candidates, as opposed to returning top-k from each layer.
-        ranked_items: dict[tuple[str, str], dict[str, Any]] = {}
-        for result in top_results + tile_results:
-            target = self._target_parts(result["target"])
-            candidate = {
-                "target": target,
-                "score": float(result["score"]),
-                "source": "infographic" if self._is_infographic_target(target) else "tile",
-            }
-            previous = ranked_items.get(target)
-            if previous is None or candidate["score"] > previous["score"]:
-                ranked_items[target] = candidate
-        selected_items = sorted(
-            ranked_items.values(),
-            key=lambda item: item["score"],
-            reverse=True,
-        )[:k_ret]
-
-        fact_index = self.level_to_indexer.get("fact")
-        if fact_index is None or fact_index.get_embeddings() is None:
-            raise RuntimeError(
-                "Tree traversal requires tile_fact embeddings "
-                "(tile_fact.pt and tile_fact.json)."
-            )
-
-        # Build D, the tile frontier used by tree traversal. A selected tile
-        # stays in D; a selected infographic contributes all of its tiles.
-        tile_frontier: dict[
-            tuple[str, str], tuple[tuple[str, str], float]
-        ] = {}
-        for item in selected_items:
-            root_target = self._target_parts(item["target"])
-            filename, component_id = root_target
-            if item["source"] == "tile":
-                tile_ids = [root_target]
-            else:
-                tile_ids = [
-                    self._target_parts(child.get_gcid())
-                    for child in self.graph.intra_document_edges.get(filename, {}).get(
-                        component_id, []
-                    )
-                    if self._is_tile_target(child.get_gcid())
-                ]
-            for tile_id in tile_ids:
-                previous = tile_frontier.get(tile_id)
-                if previous is None or item["score"] > previous[1]:
-                    tile_frontier[tile_id] = (root_target, item["score"])
-
-        candidate_facts: dict[
-            tuple[str, str], tuple[tuple[str, str], tuple[str, str], float]
-        ] = {}
-        for tile_target, (root_target, root_score) in tile_frontier.items():
-            filename, tile_id = tile_target
-            for child in self.graph.intra_document_edges.get(filename, {}).get(
-                tile_id, []
-            ):
-                fact_target = self._target_parts(child.get_gcid())
-                if self._is_fact_target(fact_target):
-                    previous = candidate_facts.get(fact_target)
-                    candidate = (root_target, tile_target, root_score)
-                    if previous is None or root_score > previous[2]:
-                        candidate_facts[fact_target] = candidate
-
-        fact_embeddings = fact_index.get_embeddings().float()
-        query = query_vec.to(fact_embeddings.device, dtype=fact_embeddings.dtype)
-        indexed_fact_targets = {}
-        for indexed_target in (fact_index._idx2target or {}).values():
-            try:
-                normalized_target = self._target_parts(indexed_target)
-            except ValueError:
-                continue
-            if self._is_fact_target(normalized_target):
-                indexed_fact_targets[normalized_target] = tuple(indexed_target)
-
-        scored_facts = []
-        for fact_target, (root_target, tile_target, root_score) in candidate_facts.items():
-            index_target = indexed_fact_targets.get(fact_target, fact_target)
-            try:
-                row = fact_index.get_vector_idx_for_target(index_target)
-            except KeyError:
-                continue
-            fact_score = float(
-                torch.nn.functional.cosine_similarity(
-                    fact_embeddings[row].reshape(1, -1),
-                    query.reshape(1, -1),
-                ).item()
-            )
-            scored_facts.append({
-                "fact": fact_target,
-                "root": root_target,
-                "tile": tile_target,
-                "root_score": root_score,
-                "score": fact_score,
-            })
-        scored_facts.sort(key=lambda item: item["score"], reverse=True)
-        traversal_done = time.perf_counter()
-
-        paths = []
-        for item in scored_facts[:k_ret]:
-            root_target = item["root"]
-            if root_target[1] == "i_1":
-                nodes = [list(root_target), list(item["tile"]), list(item["fact"])]
-                edges = [
-                    [root_target[1], item["tile"][1]],
-                    [item["tile"][1], item["fact"][1]],
-                ]
-            else:
-                nodes = [list(root_target), list(item["fact"])]
-                edges = [[root_target[1], item["fact"][1]]]
-            paths.append({
-                "nodes": nodes,
-                "edges": edges,
-                "score": item["score"],
-                "specific_scores": {},
-                "type": "path",
-            })
-
-        finished = time.perf_counter()
-        result = {
-            "qid": qid,
-            "retrieved_paths": paths,
-            "num_selected_items": len(selected_items),
-            "num_tiles_in_frontier": len(tile_frontier),
-            "time": {
-                "retrieval_time(ms)": (finished - started) * 1000,
-                "collapsed_node_search(ms)": (search_done - started) * 1000,
-                "tree_traversal(ms)": (traversal_done - search_done) * 1000,
-            },
-        }
-        append_to_jsonl_file(
-            result, os.path.join(self._output_dir, self._run_name + ".jsonl")
-        )
-        return result
-
-    def retrieve_infovqa_ablation(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        variant: str | None = None,
-        root_k: int | None = None,
-        tile_k: int | None = None,
-        k_ret: int | None = None,
-    ):
-        """Run one InfoVQA fact-candidate ablation.
-
-        Ranking, embeddings, graph expansion, and output path format are shared
-        with tree traversal. Only the fact candidate set differs by variant.
-        """
-        variants = {"flat_facts", "root_facts", "tile_facts", "root_tile_facts"}
+    def retrieve_infovqa_ablation(self, qid, query_vec, variant=None,
+                                  root_k=None, tile_k=None, k_ret=None,
+                                  path_reranking=False, path_weights=(1.0, 0.0, 0.0),
+                                  normalization="raw", missing_path_policy="error"):
+        """Dispatch one of the four InfoVQA candidate-set experiments."""
         variant = variant or self._run_config["parameters"].get(
             "ablation_variant", "root_tile_facts"
         )
-        if variant not in variants:
-            raise ValueError(f"Unknown InfoVQA ablation variant: {variant}")
-        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 10))
-        root_k = root_k or int(
-            self._run_config["parameters"].get("ablation_root_k", 100)
+        methods = {
+            "flat_facts": self.retrieve_infovqa_flat_facts,
+            "root_facts": self.retrieve_infovqa_root_facts,
+            "tile_facts": self.retrieve_infovqa_tile_facts,
+            "root_tile_facts": self.retrieve_infovqa_root_tile_facts,
+        }
+        try:
+            retrieve_variant = methods[variant]
+        except KeyError as exc:
+            raise ValueError(f"Unknown InfoVQA ablation variant: {variant}") from exc
+        return retrieve_variant(
+            qid, query_vec, root_k, tile_k, k_ret, path_reranking,
+            path_weights, normalization, missing_path_policy,
         )
-        tile_k = tile_k or int(
-            self._run_config["parameters"].get("ablation_tile_k", root_k)
-        )
-        started = time.perf_counter()
 
-        top_index = self.level_to_indexer["top"]
-        low_index = self.level_to_indexer["low"]
+    def _retrieve_infovqa_candidate_facts(
+        self, qid, query_vec, candidate_facts, selected_roots, selected_tiles,
+        variant, k_ret, root_scores=None, tile_scores=None,
+        path_reranking=False, path_weights=(1.0, 0.0, 0.0),
+        normalization="raw", missing_path_policy="error",
+    ):
+        """Score, rank, and serialize a common InfoVQA fact candidate set."""
+        started = time.perf_counter()
         fact_index = self.level_to_indexer.get("fact")
         if fact_index is None or fact_index.get_embeddings() is None:
             raise RuntimeError("InfoVQA ablation requires tile_fact embeddings.")
-
-        roots = [
-            (self._target_parts(item["target"]), float(item["score"]))
-            for item in top_index.knn_search(
-                query_vec, top_k=top_index.get_embeddings().shape[0]
-            )
-            if self._is_infographic_target(item["target"])
-        ][:root_k]
-        tiles = [
-            (self._target_parts(item["target"]), float(item["score"]))
-            for item in low_index.knn_search(
-                query_vec, top_k=low_index.get_embeddings().shape[0]
-            )
-            if self._is_tile_target(item["target"])
-        ][:tile_k]
-
-        root_scores = dict(roots)
-        tile_scores = dict(tiles)
-        ranked_nodes = sorted(
-            {target: score for target, score in roots + tiles}.items(),
-            key=lambda item: item[1],
-            reverse=True,
-        )[:k_ret]
         fact_to_parent, indexed_fact_targets = self._get_infovqa_ablation_maps(
             fact_index
         )
-
-        candidate_facts: set[tuple[str, str]] = set()
-        if variant == "flat_facts":
-            candidate_facts = {
-                self._target_parts(target)
-                for target in (fact_index._idx2target or {}).values()
-                if self._is_fact_target(target)
-            }
-        elif variant == "root_facts":
-            for root in root_scores:
-                candidate_facts.update(
-                    fact for fact, (parent, _) in fact_to_parent.items()
-                    if parent == root
-                )
-        elif variant == "tile_facts":
-            candidate_facts.update(
-                fact for fact, (_, tile) in fact_to_parent.items()
-                if tile in tile_scores
-            )
+        facts = sorted(fact for fact in candidate_facts if fact in indexed_fact_targets)
+        if facts:
+            embeddings = fact_index.get_embeddings().float()
+            rows = [
+                fact_index.get_vector_idx_for_target(indexed_fact_targets[fact])
+                for fact in facts
+            ]
+            query = query_vec.to(embeddings.device, dtype=embeddings.dtype)
+            scores = torch.nn.functional.cosine_similarity(
+                embeddings[rows], query.unsqueeze(0), dim=1
+            ).tolist()
         else:
-            selected_nodes = {target for target, _ in ranked_nodes}
-            candidate_facts.update(
-                fact for fact, (parent, tile) in fact_to_parent.items()
-                if parent in selected_nodes or tile in selected_nodes
-            )
-
-        fact_embeddings = fact_index.get_embeddings().float()
-        query = query_vec.to(fact_embeddings.device, dtype=fact_embeddings.dtype)
-        facts = [
-            fact for fact in candidate_facts if fact in indexed_fact_targets
-        ]
-        rows = [
-            fact_index.get_vector_idx_for_target(indexed_fact_targets[fact])
-            for fact in facts
-        ]
-        scores = torch.nn.functional.cosine_similarity(
-            fact_embeddings[rows], query.unsqueeze(0), dim=1
-        ).tolist()
+            scores = []
         scored = []
-        for fact, score in zip(facts, scores):
-            root, tile = fact_to_parent.get(fact, ((fact[0], "i_1"), fact))
-            scored.append({"fact": fact, "root": root, "tile": tile, "score": score})
-        scored.sort(key=lambda item: item["score"], reverse=True)
-        if variant == "root_tile_facts":
-            selected_roots = [target for target, _ in ranked_nodes if target in root_scores]
-            selected_tiles = [target for target, _ in ranked_nodes if target in tile_scores]
-        elif variant == "root_facts":
-            selected_roots, selected_tiles = list(root_scores), []
-        elif variant == "tile_facts":
-            selected_roots, selected_tiles = [], list(tile_scores)
+        path_options = {}
+        missing_path_count = 0
+        root_scores = root_scores or {}
+        tile_scores = tile_scores or {}
+        alpha, beta, gamma = self._validate_path_weights(path_weights)
+        if path_reranking and normalization != "raw":
+            fact_values = [score for score in scores]
+            root_scores = self._normalize_score_map(root_scores, normalization)
+            tile_scores = self._normalize_score_map(tile_scores, normalization)
+            fact_values = self._normalize_values(fact_values, normalization)
         else:
-            selected_roots, selected_tiles = [], []
-        paths = []
-        for item in scored[:k_ret]:
-            nodes = [list(item["root"]), list(item["tile"]), list(item["fact"])]
-            paths.append({
-                "nodes": nodes,
-                "edges": [[item["root"][1], item["tile"][1]], [item["tile"][1], item["fact"][1]]],
-                "score": item["score"], "specific_scores": {}, "type": "path",
+            fact_values = scores
+        for fact, score in zip(facts, scores):
+            fact_score = fact_values[facts.index(fact)]
+            paths = fact_to_parent.get(fact, [])
+            if not paths:
+                missing_path_count += 1
+                if path_reranking and missing_path_policy == "error":
+                    raise RuntimeError(
+                        f"Missing graph path metadata for fact {fact!r}"
+                    )
+                paths = [((fact[0], "i_1"), fact)]
+            path_scores = []
+            for root, tile in paths:
+                if path_reranking and (
+                    root not in root_scores or tile not in tile_scores
+                ):
+                    missing_path_count += 1
+                    if missing_path_policy == "error":
+                        raise RuntimeError(
+                            f"Missing root/tile score for fact path "
+                            f"{fact!r}: root={root!r}, tile={tile!r}"
+                        )
+                    continue
+                tile_score = tile_scores.get(tile)
+                root_score = root_scores.get(root)
+                final_score = (
+                    alpha * fact_score + beta * tile_score + gamma * root_score
+                    if path_reranking else score
+                )
+                option = {
+                    "fact_id": list(fact),
+                    "tile_id": list(tile),
+                    "root_id": list(root),
+                    "fact_score": score,
+                    "tile_score": tile_score,
+                    "root_score": root_score,
+                }
+                path_options.setdefault(fact, []).append(option)
+                path_scores.append((final_score, root, tile, tile_score, root_score))
+            if not path_scores:
+                continue
+            final_score, root, tile, tile_score, root_score = max(
+                path_scores, key=lambda item: (item[0], item[1], item[2])
+            )
+            scored.append({
+                "fact": fact, "root": root, "tile": tile,
+                "fact_score": score, "tile_score": tile_score,
+                "root_score": root_score, "score": final_score,
             })
-        finished = time.perf_counter()
+        scored.sort(key=lambda item: item["score"], reverse=True)
+        paths = [{
+            "nodes": [list(item["root"]), list(item["tile"]), list(item["fact"])],
+            "edges": [[item["root"][1], item["tile"][1]],
+                      [item["tile"][1], item["fact"][1]]],
+            "score": item["score"], "specific_scores": {}, "type": "path",
+        } for item in scored[:k_ret]]
         result = {
-            "qid": qid, "retrieved_paths": paths, "ablation_variant": variant,
+            "qid": qid, "retrieved_paths": paths,
+            "ablation_variant": variant,
             "candidate_facts": [list(fact) for fact in sorted(candidate_facts)],
             "candidate_roots": [list(root) for root in selected_roots],
             "candidate_tiles": [list(tile) for tile in selected_tiles],
             "num_candidate_facts": len(candidate_facts),
-            "time": {"retrieval_time(ms)": (finished - started) * 1000},
+            "path_reranking": path_reranking,
+            "path_weights": [alpha, beta, gamma],
+            "normalization": normalization,
+            "selected_paths": [
+                {
+                    "fact_id": list(item["fact"]),
+                    "tile_id": list(item["tile"]),
+                    "root_id": list(item["root"]),
+                    "fact_score": item["fact_score"],
+                    "tile_score": item["tile_score"],
+                    "root_score": item["root_score"],
+                    "final_score": item["score"],
+                }
+                for item in scored[:k_ret]
+            ],
+            "candidate_paths": [
+                option
+                for fact in sorted(path_options)
+                for option in path_options[fact]
+            ],
+            "missing_path_count": missing_path_count,
+            "time": {"retrieval_time(ms)": (time.perf_counter() - started) * 1000},
         }
         append_to_jsonl_file(
             result, os.path.join(self._output_dir, self._run_name + ".jsonl")
         )
         return result
+
+    def rerank_infovqa_paths(
+        self, retrieval_result, path_weights, normalization="raw",
+        missing_path_policy="error",
+    ):
+        """Rerank a cached MEHR candidate result without changing candidates."""
+        alpha, beta, gamma = self._validate_path_weights(path_weights)
+        candidates = retrieval_result.get("candidate_paths", [])
+        if not candidates:
+            raise RuntimeError("Cached retrieval result has no candidate_paths.")
+        fact_values = [float(item["fact_score"]) for item in candidates]
+        tile_values = [
+            None if item["tile_score"] is None else float(item["tile_score"])
+            for item in candidates
+        ]
+        root_values = [
+            None if item["root_score"] is None else float(item["root_score"])
+            for item in candidates
+        ]
+        if normalization != "raw":
+            fact_values = self._normalize_values(fact_values, normalization)
+            valid_tile = [value for value in tile_values if value is not None]
+            valid_root = [value for value in root_values if value is not None]
+            tile_norm = self._normalize_values(valid_tile, normalization)
+            root_norm = self._normalize_values(valid_root, normalization)
+            tile_iter = iter(tile_norm)
+            root_iter = iter(root_norm)
+            tile_values = [
+                next(tile_iter) if value is not None else None
+                for value in tile_values
+            ]
+            root_values = [
+                next(root_iter) if value is not None else None
+                for value in root_values
+            ]
+        scored = []
+        for item, fact_score, tile_score, root_score in zip(
+            candidates, fact_values, tile_values, root_values
+        ):
+            if any(value is None for value in (fact_score, tile_score, root_score)):
+                if missing_path_policy == "error":
+                    raise RuntimeError("Missing component score in cached path.")
+                continue
+            row = dict(item)
+            row["final_score"] = (
+                alpha * fact_score + beta * tile_score + gamma * root_score
+            )
+            scored.append(row)
+        scored.sort(
+            key=lambda item: (
+                item["final_score"], tuple(item["root_id"]),
+                tuple(item["tile_id"]), tuple(item["fact_id"]),
+            ),
+            reverse=True,
+        )
+        best_by_fact = {}
+        for item in scored:
+            best_by_fact.setdefault(tuple(item["fact_id"]), item)
+        scored = list(best_by_fact.values())
+        scored.sort(
+            key=lambda item: (
+                item["final_score"], tuple(item["root_id"]),
+                tuple(item["tile_id"]), tuple(item["fact_id"]),
+            ),
+            reverse=True,
+        )
+        k_ret = len(retrieval_result["retrieved_paths"])
+        paths = [{
+            "nodes": [item["root_id"], item["tile_id"], item["fact_id"]],
+            "edges": [
+                [item["root_id"][1], item["tile_id"][1]],
+                [item["tile_id"][1], item["fact_id"][1]],
+            ],
+            "score": item["final_score"],
+            "specific_scores": {},
+            "type": "path",
+        } for item in scored[:k_ret]]
+        result = dict(retrieval_result)
+        result["retrieved_paths"] = paths
+        result["path_reranking"] = True
+        result["path_weights"] = [alpha, beta, gamma]
+        result["normalization"] = normalization
+        result["selected_paths"] = scored[:k_ret]
+        return result
+
+    @staticmethod
+    def _validate_path_weights(weights):
+        if len(weights) != 3:
+            raise ValueError("Path weights must contain alpha, beta, gamma.")
+        values = tuple(float(value) for value in weights)
+        if any(value < 0 for value in values):
+            raise ValueError("Path weights must be non-negative.")
+        if abs(sum(values) - 1.0) > 1e-8:
+            raise ValueError("Path weights must sum to 1.")
+        return values
+
+    @staticmethod
+    def _normalize_values(values, mode):
+        if mode == "raw":
+            return list(values)
+        if mode != "query_zscore":
+            raise ValueError(f"Unknown path score normalization: {mode}")
+        if not values:
+            return []
+        mean = sum(values) / len(values)
+        variance = sum((value - mean) ** 2 for value in values) / len(values)
+        std = max(variance ** 0.5, 1e-8)
+        return [(value - mean) / std for value in values]
+
+    @classmethod
+    def _normalize_score_map(cls, scores, mode):
+        keys = list(scores)
+        values = cls._normalize_values([scores[key] for key in keys], mode)
+        return dict(zip(keys, values))
+
+    def _infovqa_selection(self, query_vec, root_k, tile_k, k_ret):
+        top_index = self.level_to_indexer["top"]
+        low_index = self.level_to_indexer["low"]
+        all_roots = [
+            (self._target_parts(item["target"]), float(item["score"]))
+            for item in top_index.knn_search(
+                query_vec, top_k=top_index.get_embeddings().shape[0]
+            ) if self._is_infographic_target(item["target"])
+        ]
+        all_tiles = [
+            (self._target_parts(item["target"]), float(item["score"]))
+            for item in low_index.knn_search(
+                query_vec, top_k=low_index.get_embeddings().shape[0]
+            ) if self._is_tile_target(item["target"])
+        ]
+        roots = all_roots[:root_k]
+        tiles = all_tiles[:tile_k]
+        ranked_nodes = sorted(
+            dict(roots + tiles).items(), key=lambda item: item[1], reverse=True
+        )[:k_ret]
+        return roots, tiles, ranked_nodes, dict(all_roots), dict(all_tiles)
+
+    def _infovqa_k_values(self, root_k, tile_k, k_ret):
+        params = self._run_config["parameters"]
+        k_ret = k_ret or int(params.get("top_k", 10))
+        root_k = root_k or int(params.get("ablation_root_k", 100))
+        tile_k = tile_k or int(params.get("ablation_tile_k", root_k))
+        return root_k, tile_k, k_ret
+
+    def _retrieve_infovqa_selected(self, qid, query_vec, variant,
+                                   root_k, tile_k, k_ret, mode,
+                                   path_reranking=False, path_weights=(1.0, 0.0, 0.0),
+                                   normalization="raw", missing_path_policy="error"):
+        root_k, tile_k, k_ret = self._infovqa_k_values(root_k, tile_k, k_ret)
+        roots, tiles, ranked_nodes, all_root_scores, all_tile_scores = self._infovqa_selection(
+            query_vec, root_k, tile_k, k_ret
+        )
+        fact_to_parent, _ = self._get_infovqa_ablation_maps(
+            self.level_to_indexer["fact"]
+        )
+        root_set, tile_set = dict(roots), dict(tiles)
+        if mode == "root":
+            selected = {target for target, _ in roots}
+        elif mode == "tile":
+            selected = {target for target, _ in tiles}
+        else:
+            selected = {target for target, _ in ranked_nodes}
+        candidate_facts = {
+            fact for fact, paths in fact_to_parent.items()
+            if any(
+                (mode == "root" and root in selected)
+                or (mode == "tile" and tile in selected)
+                or (mode == "root_tile" and (root in selected or tile in selected))
+                for root, tile in paths
+            )
+        }
+        selected_roots = list(root_set) if mode == "root" else []
+        selected_tiles = list(tile_set) if mode == "tile" else []
+        if mode == "root_tile":
+            selected_roots = [target for target, _ in ranked_nodes if target in root_set]
+            selected_tiles = [target for target, _ in ranked_nodes if target in tile_set]
+        return self._retrieve_infovqa_candidate_facts(
+            qid, query_vec, candidate_facts, selected_roots, selected_tiles,
+            variant, k_ret, all_root_scores, all_tile_scores, path_reranking, path_weights,
+            normalization, missing_path_policy,
+        )
+
+    def retrieve_infovqa_flat_facts(self, qid, query_vec, root_k=None,
+                                    tile_k=None, k_ret=None, path_reranking=False,
+                                    path_weights=(1.0, 0.0, 0.0), normalization="raw",
+                                    missing_path_policy="error"):
+        del root_k, tile_k
+        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 10))
+        fact_index = self.level_to_indexer.get("fact")
+        if fact_index is None:
+            raise RuntimeError("InfoVQA ablation requires tile_fact embeddings.")
+        facts = {
+            self._target_parts(target) for target in (fact_index._idx2target or {}).values()
+            if self._is_fact_target(target)
+        }
+        return self._retrieve_infovqa_candidate_facts(
+            qid, query_vec, facts, [], [], "flat_facts", k_ret, {},
+            {}, path_reranking, path_weights, normalization, missing_path_policy,
+        )
+
+    def retrieve_infovqa_root_facts(self, qid, query_vec, root_k=None,
+                                    tile_k=None, k_ret=None, path_reranking=False,
+                                    path_weights=(1.0, 0.0, 0.0), normalization="raw",
+                                    missing_path_policy="error"):
+        del tile_k
+        return self._retrieve_infovqa_selected(
+            qid, query_vec, "root_facts", root_k, None, k_ret, "root",
+            path_reranking, path_weights, normalization, missing_path_policy,
+        )
+
+    def retrieve_infovqa_tile_facts(self, qid, query_vec, root_k=None,
+                                    tile_k=None, k_ret=None, path_reranking=False,
+                                    path_weights=(1.0, 0.0, 0.0), normalization="raw",
+                                    missing_path_policy="error"):
+        del root_k
+        return self._retrieve_infovqa_selected(
+            qid, query_vec, "tile_facts", None, tile_k, k_ret, "tile",
+            path_reranking, path_weights, normalization, missing_path_policy,
+        )
+
+    def retrieve_infovqa_root_tile_facts(self, qid, query_vec, root_k=None,
+                                         tile_k=None, k_ret=None,
+                                         path_reranking=False,
+                                         path_weights=(1.0, 0.0, 0.0),
+                                         normalization="raw",
+                                         missing_path_policy="error"):
+        return self._retrieve_infovqa_selected(
+            qid, query_vec, "root_tile_facts", root_k, tile_k, k_ret, "root_tile",
+            path_reranking, path_weights, normalization, missing_path_policy,
+        )
     
     
     def retrieve_iterative_late_interaction(
@@ -1186,539 +1096,6 @@ class Retriever:
     # Late-interaction re-ranking over top-level edges
     # ───────────────────────────────────────────────────────────────────────
     
-    def retrieve_late_interaction(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        query_vec_list: List[torch.Tensor],
-        k_ret: int | None = None,
-    ):
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-        top_level_candidates_num = self._run_config["parameters"]["beam_width"]
-
-        if not query_vec_list:
-            query_vec_list = [query_vec]
-
-        total_start = time.perf_counter()
-        # ─────────────────────────────────────────────────────────────
-        # 1) gather top-level candidates
-        knn_start = time.perf_counter()
-        low_level_indexer = self.level_to_indexer["low"]
-        results = low_level_indexer.knn_search(query_vec, top_k=2048)
-        knn_end = time.perf_counter()
-        
-        top_level_gcid_organizing_start = time.perf_counter()
-        low_level_gcid_list = [r["target"] for r in results]
-        top_level_gcid_list = [top_level_gcid_by_low_level_gcid(g) for g in low_level_gcid_list]
-        distinct_top_gcid_list = []
-        seen = set()
-        for gcid in top_level_gcid_list:
-            if gcid not in seen:
-                seen.add(gcid)
-                distinct_top_gcid_list.append(gcid)
-        # truncate to beam
-        if len(distinct_top_gcid_list) > top_level_candidates_num:
-            distinct_top_gcid_list = distinct_top_gcid_list[:top_level_candidates_num]
-        top_level_gcid_organizing_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 2) build subgraph
-        subgraph_extraction_start = time.perf_counter()
-        subgraph = Subgraph(
-            graph = self.graph,
-            global_top_level_component_id_list = distinct_top_gcid_list
-        )
-        subgraph.extract_edges(self._run_config["parameters"]["hop_mode"])
-        subgraph_top_gcid_list = subgraph.get_top_level_gcids_list()
-        subgraph_extraction_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 3) Build subindex + compute subquery scores on GPU
-        gpu_calculation_start = time.perf_counter()
-        self._subindexer_low.build_subindex(subgraph_top_gcid_list, self.graph)
-        self._subindexer_low.compute_subquery_scores(query_vec_list)
-        low_level_gcids_num = self._subindexer_low.get_low_gcids_num()
-        gpu_calculation_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 4) Score each edge in CPU using late interaction
-        cpu_late_interaction_start = time.perf_counter()
-        edge_list = subgraph.get_retrieval_units_list()
-        scored = []
-        for e_pair in edge_list:
-            if len(e_pair) == 1:
-                # single node
-                e_tup = (tuple(e_pair[0]),)
-                nodes, sc = self._subindexer_low.score_node(e_tup)
-            elif len(e_pair) == 2:
-                e_tup = [tuple(e_pair[0]), tuple(e_pair[1])]
-                nodes, sc = self._subindexer_low.score_edge(e_tup)
-            else:
-                raise ValueError(f"Invalid edge pair: {e_pair}")
-            scored.append({"edge": nodes, "score": sc})
-        cpu_late_interaction_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 5) In-edge reranking
-            # 5.1) Remove duplicates, keep max score
-        in_edge_reranking_start = time.perf_counter()
-        unique_map = {}
-        for item in scored:
-            # We treat the 'edge' as a frozenset of nodes
-            # so that (A,B) and (B,A) are considered the same set
-            edge_key = frozenset(item["edge"])
-            if edge_key not in unique_map:
-                unique_map[edge_key] = item
-            else:
-                # Keep the one with the highest score
-                if item["score"] > unique_map[edge_key]["score"]:
-                    unique_map[edge_key] = item
-
-        scored = list(unique_map.values())
-
-            # Sort & keep top-k
-        scored.sort(key=lambda x: x["score"], reverse=True)
-        top_k = scored[:k_ret] if len(scored) > k_ret else scored
-
-            # 5.2) Re‑order the GCIDs within each edge by
-
-        relevancy_cache = {}
-        low_emb_matrix = self.level_to_indexer["top"].get_embeddings()
-        # build a short helper to get the dot product with the main query_vec
-        device = low_emb_matrix.device
-        query_on_dev = query_vec.to(device, dtype=low_emb_matrix.dtype)
-
-        def get_relevancy(gcid: tuple[str,str]) -> float:
-            """Compute or retrieve the dot product of node’s embedding vs. query."""
-            if gcid in relevancy_cache:
-                return relevancy_cache[gcid]
-            idxer = self.level_to_indexer["top"]
-            try:
-                row_idx = idxer.get_vector_idx_for_target(gcid)
-            except KeyError:
-                # fallback or 0
-                print("[Retriever] KeyError in in-edge reranking: ", gcid)
-                relevancy_cache[gcid] = 0.0
-                return 0.0
-            node_vec = low_emb_matrix[row_idx, :]
-            score = float(torch.dot(node_vec, query_on_dev).item())
-            relevancy_cache[gcid] = score
-            return score
-
-            # Reorder the GCIDs for each item in top_k
-        for item in top_k:
-            if len(item["edge"]) > 1:
-                # Sort the node list by descending relevancy
-                sorted_edge = sorted(
-                    item["edge"],
-                    key=lambda g: get_relevancy(g),
-                    reverse=True
-                )
-                item["edge"] = sorted_edge
-        in_edge_reranking_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-
-        total_end = time.perf_counter()
-        # 5) Build retrieval object
-        retrieved_units = []
-        for it in top_k:
-            if len(it["edge"]) == 2:
-                retrieved_units.append({
-                    "nodes": [list(it["edge"][0]), list(it["edge"][1])],
-                    "edges": [(0, 1)],
-                    "score": it["score"],
-                    "specific_scores": {},
-                    "type": "edge",
-                })
-            else:
-                retrieved_units.append({
-                    "nodes": [list(it["edge"][0])],
-                    "edges": [],
-                    "score": it["score"],
-                    "specific_scores": {},
-                    "type": "node",
-                })
-
-        retrieval_obj = {
-            "qid": qid,
-            "retrieved_units": retrieved_units,
-            "middle_results": {
-                "subgraph_nodes_num": len(subgraph_top_gcid_list),
-                "subgraph_edges_num": len(edge_list),
-                "low_level_gcids_num": low_level_gcids_num
-                },
-            "time": {
-                "retrieval_time(ms)":           (total_end - total_start) * 1000,
-                "knn_search(ms)":               (knn_end - knn_start) * 1000,
-                "top_level_gcid_organizing(ms)": (top_level_gcid_organizing_end - top_level_gcid_organizing_start) * 1000,
-                "subgraph_extraction(ms)":      (subgraph_extraction_end - subgraph_extraction_start) * 1000,
-                "gpu_calculation(ms)":          (gpu_calculation_end - gpu_calculation_start) * 1000,
-                "cpu_late_interaction(ms)":     (cpu_late_interaction_end - cpu_late_interaction_start) * 1000,
-                "in_edge_reranking(ms)":        (in_edge_reranking_end - in_edge_reranking_start) * 1000,
-            }
-        }
-
-        outfile = os.path.join(self._output_dir, self._run_name + ".jsonl")
-        append_to_jsonl_file(retrieval_obj, outfile)
-
-        return retrieval_obj
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    def retrieve_single_unilevel(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        k_ret: int | None = None
-    ) -> dict:
-        """
-        Run k‑NN over `self._faiss_index` for one query vector and
-        return the legacy‑format retrieval object.
-        """
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-
-        # ---- Single kNN search --------------------------------
-        t0 = time.perf_counter()
-        t_knn0 = time.perf_counter()
-        
-        target_indexer: Indexer = self.level_to_indexer[self._target_level]
-        results = target_indexer.knn_search(query_vec, top_k = k_ret)
-        
-        t_knn1 = time.perf_counter()
-        t1 = time.perf_counter()
-
-        # ---- build retrieved_units_list ---------------------------
-        retrieved_units_list = [
-            {
-                "nodes": [res["target"]],
-                "edges": [],
-                "score": res["score"],
-                "specific_scores": {},
-                "type": "node",
-            }
-            for res in results
-        ]
-
-        # ---- wrap in legacy retrieval_obj -------------------------
-        retrieval_obj = {
-            "qid": qid,
-            "middle_results": {},
-            "time": {
-                "retrieval_time(ms)":   (t1 - t0) * 1000,
-                "single_vector_knn(ms)": (t_knn1 - t_knn0) * 1000,
-            },
-            "retrieved_units": retrieved_units_list,
-        }
-
-        # ---- (optional) dump to JSONL per rank --------------------
-        out_dir = self._output_dir
-        outfile = os.path.join(out_dir, self._run_name + ".jsonl")
-        # Save `self._run_config` to the output directory as yaml format
-        append_to_jsonl_file(retrieval_obj, outfile)
-        
-        return retrieval_obj
-    
-    
-    
-    
-    # ───────────────────────────────────────────────────────────────────────
-    # Optimised top-down retrieval
-    # ───────────────────────────────────────────────────────────────────────
-    def retrieve_single_topdown(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        k_ret: int | None = None,
-    ) -> dict:
-        """
-        Top-k retrieval with parent-child re-ranking.
-
-        Steps
-        -----
-        1. top-level FAISS search (beam_width)
-        2. collect **all** child row-indices once
-        3. single torch.matmul(query, child_matrix.T)
-        4. aggregate (max child + parent score) per parent
-        5. keep top-k and output in legacy format
-        """
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-
-        beam_width   = self._beam_width
-        total_start           = time.perf_counter()
-
-        # ── 1) TOP-LEVEL FAISS SEARCH ──────────────────────────────────
-        top_indexer  = self.level_to_indexer["top"]
-        knn_start       = time.perf_counter()
-        top_results  = top_indexer.knn_search(query_vec, top_k = beam_width)
-        knn_end       = time.perf_counter()
-
-        # Short-circuit if nothing found
-        if not top_results:
-            return self.retrieve_single_unilevel(qid, query_vec, k_ret)
-
-        # ── helpers / caches ──────────────────────────────────────────
-        low_indexer = self.level_to_indexer["low"]
-        low_emb     = low_indexer.get_embeddings()         # (N_low, D) torch.Tensor
-        device      = low_emb.device
-
-        # build cache dict if missing
-        if not hasattr(self, "_parent_row_cache"):
-            self._parent_row_cache = {}
-
-        parent_rows_list = []          # list[list[int]]
-        all_rows_set     = set()
-
-        # ── 2) COLLECT CHILD ROW INDICES ONCE ─────────────────────────
-        for cand in top_results:
-            parent_key = tuple(cand["target"])             # (filename, comp_id)
-
-            # cached ?
-            if parent_key in self._parent_row_cache:
-                rows = self._parent_row_cache[parent_key]
-            else:
-                # fetch children from Graph
-                child_components = self.graph.get_children_by_gcid(filename = parent_key[0], component_id = parent_key[1])
-
-                rows = []
-                for child in child_components:
-                    try:
-                        ridx = low_indexer.get_vector_idx_for_target((parent_key[0], child.get_id()))
-                        rows.append(ridx)
-                    except KeyError:
-                        # child embedding missing – skip
-                        continue
-
-                self._parent_row_cache[parent_key] = rows
-
-            parent_rows_list.append(rows)
-            all_rows_set.update(rows)
-
-
-        # If no child rows at all, fall back to parent scores only
-        if not all_rows_set:
-            scored_candidates = [
-                {
-                    "target": cand["target"],
-                    "score":  cand["score"],
-                    "best_child": None,
-                    "best_child_score": None,
-                }
-                for cand in top_results
-            ]
-        else:
-            # ── 3) SINGLE BATCHED DOT-PRODUCT ─────────────────────────
-            sorted_rows  = sorted(all_rows_set)
-            row2local    = {r : i for i, r in enumerate(sorted_rows)}
-
-            sub_emb      = low_emb.index_select(0, torch.tensor(
-                sorted_rows, device=device, dtype=torch.long))     # (M, D)
-            # ensure dtypes
-            q = query_vec.to(device, dtype=sub_emb.dtype)
-            child_scores = torch.matmul(sub_emb, q)                # (M,)
-
-            # helper to fetch best child score per parent
-            scored_candidates = []
-            for cand, rows in zip(top_results, parent_rows_list):
-                if not rows:
-                    best_child_score = 0.0
-                    best_child_id    = None
-                else:
-                    local_idx        = [row2local[r] for r in rows]
-                    local_scores     = child_scores[local_idx]
-                    best_pos         = torch.argmax(local_scores).item()
-                    best_child_score = local_scores[best_pos].item()
-                    # Retrieve child ID for bookkeeping (optional)
-                    best_row         = rows[best_pos]
-                    best_child_id    = low_indexer._idx2target[str(best_row)]
-
-                    # Various score choices                
-                # final_score = cand["score"] * 0.5 + best_child_score * 0.5
-                final_score = best_child_score
-                
-                scored_candidates.append({
-                    "target":           cand["target"],
-                    "score":            final_score,
-                    "best_child":       best_child_id,
-                    "best_child_score": best_child_score,
-                })
-
-        # ── 4) FINAL RANK & TRUNCATE ─────────────────────────────────
-        scored_candidates.sort(key=lambda x: x["score"], reverse=True)
-        final_candidates = scored_candidates[:k_ret]
-        t1 = time.perf_counter()
-
-        # ── 5) BUILD LEGACY OUTPUT OBJ ───────────────────────────────
-        retrieved_units_list = [
-            {
-                "nodes": [cand["target"]],
-                "edges": [],
-                "score": cand["score"],
-                "specific_scores": {
-                    "best_child":       cand["best_child"],
-                    "best_child_score": cand["best_child_score"],
-                },
-                "type": "node",
-            }
-            for cand in final_candidates
-        ]
-
-        retrieval_obj = {
-            "qid": qid,
-            "middle_results": {},
-            "time": {
-                "retrieval_time(ms)":      (t1 - total_start)     * 1000,
-                "single_vector_knn(ms)":   (knn_end - knn_start) * 1000,
-            },
-            "retrieved_units": retrieved_units_list,
-        }
-
-        outfile = os.path.join(self._output_dir, self._run_name + ".jsonl")
-        append_to_jsonl_file(retrieval_obj, outfile)
-        return retrieval_obj
-
-    
-    
-    
-    
-    
-    
-    
-    def retrieve_decomposed_topdown(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        query_vec_list: List[torch.Tensor],       # one per sub-query
-        k_ret: int | None = None,
-    ) -> dict:
-        
-        """
-        Beam search over sub-queries.
-
-        • Start with sub-query-0 → low-level FAISS (beam_width results).
-        • For each next sub-query, expand every path with *all* neighbours
-        (same-doc + inter-doc) of its current tail.
-        • Path score = Σ sub-query-level dot-products.
-        """
-        
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-
-        B         = self._beam_width
-        low_idx   = self.level_to_indexer["low"]
-        low_emb   = low_idx.get_embeddings()
-        device    = low_emb.device
-        t0        = time.perf_counter()
-
-        # ── iteration 0 : plain k-NN ────────────────────────────────────
-        first_vec   = query_vec_list[0]
-        first_hits  = low_idx.knn_search(first_vec, top_k = B)
-        beam = [
-            {
-                "path":  [tuple(hit["target"])],   # list[(fname,cid)]
-                "score": hit["score"],
-            }
-            for hit in first_hits
-        ]
-
-        # ── subsequent sub-queries ─────────────────────────────────────
-        for depth in range(1, len(query_vec_list)):
-
-            qvec = query_vec_list[depth].to(device, dtype=low_emb.dtype)
-
-            # ---- gather unique candidate rows for this depth ----
-            cand_ckeys: List[Tuple[str, str]] = []
-            for entry in beam:
-                tail = entry["path"][-1]
-                cand_ckeys.extend(self._get_neighbors(tail))
-            cand_ckeys = list({ck for ck in cand_ckeys})        # de-dup
-
-            # map → row index
-            row_map = {}
-            for ck in cand_ckeys:
-                try:
-                    row_map[ck] = low_idx.get_vector_idx_for_target(list(ck))
-                except KeyError:
-                    continue
-            if not row_map:
-                break
-
-            rows     = list(row_map.values())
-            mat_emb  = low_emb.index_select(0, torch.tensor(rows, device = device))
-            sim_vec  = torch.matmul(mat_emb, qvec).cpu()
-            ck2score = {ck: sim_vec[i].item() for i, ck in enumerate(row_map)}
-
-            # ---- expand beam ----
-            new_paths: List[Dict[str, Any]] = []
-            for entry in beam:
-                tail = entry["path"][-1]
-                for neigh in self._get_neighbors(tail):
-                    if neigh not in ck2score:
-                        continue
-                    new_paths.append({
-                        "path":  entry["path"] + [neigh],
-                        "score": entry["score"] + ck2score[neigh],
-                    })
-
-            if not new_paths:                                   # stagnation
-                break
-            # keep top-B
-            new_paths.sort(key=lambda x: x["score"], reverse=True)
-            beam = new_paths[ : B]
-
-        # ── final top-k selection ──────────────────────────────────────
-        beam.sort(key=lambda x: x["score"], reverse=True)
-        final = beam[:k_ret]
-        t1 = time.perf_counter()
-
-        retrieved_units = [
-            {
-                "nodes": path["path"],
-                "edges": [],                       # path edges optional
-                "score": path["score"],
-                "specific_scores": {},             # fill if needed
-                "type": "path",
-            }
-            for path in final
-        ]
-
-        retrieval_obj = {
-            "qid": qid,
-            "middle_results": {},
-            "time": {
-                "retrieval_time(ms)": (t1 - t0) * 1000,
-            },
-            "retrieved_units": retrieved_units,
-        }
-
-        outfile = os.path.join(self._output_dir, self._run_name + ".jsonl")
-        append_to_jsonl_file(retrieval_obj, outfile)
-        return retrieval_obj
-    
-        raise NotImplementedError("Decomposed top-down retrieval not implemented yet.")
-    
-
-
-
-
-
-
 def main():
     retriever = Retriever()
     retriever.run()
@@ -1742,9 +1119,9 @@ def parse_arguments(argv=None) -> argparse.Namespace:
     parser.add_argument(
         "--run_mode",
         type=str,
-        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction", "tree_traversal", "mcts", "infovqa_ablation"],
+        choices=["iterative_late_interaction", "infovqa_ablation"],
         default=None,
-        help="One of single_knn, single_topdown, decomposed_topdown, late_interaction."
+        help="Choose iterative late interaction or InfoVQA ablation."
     )
     parser.add_argument(
         "--target_dataset",
@@ -1853,10 +1230,7 @@ def auto_generate_run_name(config: Dict[str, Any]) -> str:
 
     # Define relevant parameters for each run_mode
     relevant_map = {
-        "single_knn":         ["target_level", "top_k"],
-        "single_topdown":     ["beam_width",   "top_k"],
-        "decomposed_topdown": ["beam_width",   "top_k"],
-        "late_interaction":   ["beam_width",   "hop_mode", "target_level", "top_k"],
+        "iterative_late_interaction": ["beam_width", "num_iterations", "top_k"],
         "infovqa_ablation":   ["top_k", "ablation_root_k", "ablation_tile_k"],
     }
 

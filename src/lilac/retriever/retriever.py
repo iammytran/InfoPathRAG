@@ -452,6 +452,7 @@ class Retriever:
             "_f" in component_id
         )
 
+    @staticmethod
     def _is_infographic_target(target):
         return (
             isinstance(target, (list, tuple))

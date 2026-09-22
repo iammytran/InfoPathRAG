@@ -1,7 +1,12 @@
 import pytest
 
 from src.lilac.retriever.retriever import Retriever
-from src.experiment.experiments.infovqa_ablation import _score_distribution
+from src.experiment.experiments.infovqa_ablation import (
+    _gold,
+    _metrics,
+    _score_distribution,
+    _query_text,
+)
 
 
 def test_validate_path_weights():
@@ -29,3 +34,20 @@ def test_score_distribution_contains_required_statistics():
 def test_deterministic_weight_tie_break_is_stable():
     values = [(0.8, ("r", "t", "f")), (0.8, ("a", "b", "c"))]
     assert max(values, key=lambda value: (value[0], value[1])) == values[0]
+
+
+def test_info_vqa_gold_supports_raw_and_converted_schemas():
+    assert _gold([{
+        "questionId": 1, "question": "raw", "image_local_name": "123.jpeg"
+    }]) == {"1": "123"}
+    assert _gold([{
+        "qid": 2, "question": "converted",
+        "evidences": [{"gold_image": "456.png"}],
+    }]) == {"2": "456"}
+    assert _query_text([{
+        "questionId": 1, "question": "raw", "image_local_name": "123.jpeg"
+    }]) == {"1": "raw"}
+
+
+def test_metrics_are_numeric_when_no_queries_are_labeled():
+    assert _metrics([]) == (0.0, 0.0)

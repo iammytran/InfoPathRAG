@@ -8,25 +8,37 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import math
 import os
 import statistics
-import subprocess
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 from src.utils.utils import REPO_ROOT, read_json_or_jsonl
 
 
 VARIANTS = ("flat_facts", "root_facts", "tile_facts", "root_tile_facts")
-WEIGHT_GRID = [
-    (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0),
-    (0.8, 0.2, 0.0), (0.7, 0.3, 0.0), (0.8, 0.0, 0.2),
-    (0.7, 0.0, 0.3), (0.8, 0.15, 0.05), (0.7, 0.2, 0.1),
-    (0.6, 0.3, 0.1), (0.6, 0.2, 0.2), (0.5, 0.3, 0.2),
-    (1 / 3, 1 / 3, 1 / 3),
-]
+DEFAULT_PATH_WEIGHTS = (1 / 3, 1 / 3, 1 / 3)
+LOGGER = logging.getLogger("infovqa_ablation")
+
+
+def _configure_logging():
+    log_path = Path(REPO_ROOT) / "debug" / "infovqa_ablation.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    LOGGER.setLevel(logging.INFO)
+    LOGGER.handlers.clear()
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(message)s",
+        "%Y-%m-%dT%H:%M:%S%z",
+    )
+    file_handler = logging.FileHandler(log_path)
+    file_handler.setFormatter(formatter)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    LOGGER.addHandler(file_handler)
+    LOGGER.addHandler(stream_handler)
+    return log_path
 
 
 def _doc(value):
@@ -41,19 +53,29 @@ def _gold(qas):
     result = {}
     for item in qas:
         evidences = item.get("evidences") or []
-        if evidences and evidences[0].get("gold_image") is not None:
-            result[str(item["qid"])] = _doc(evidences[0]["gold_image"])
+        image = next(
+            (evidence.get("gold_image") for evidence in evidences
+             if evidence.get("gold_image") is not None),
+            item.get("image_local_name"),
+        )
+        qid = item.get("qid", item.get("questionId"))
+        if qid is not None and image is not None:
+            result[str(qid)] = _doc(image)
     return result
 
 
 def _query_text(qas):
-    return {str(item["qid"]): item.get("question") for item in qas}
+    return {
+        str(item.get("qid", item.get("questionId"))): item.get("question")
+        for item in qas
+        if item.get("qid", item.get("questionId")) is not None
+    }
 
 
 def _metrics(logs):
     labeled = [row for row in logs if row.get("infographic_correct") is not None]
     if not labeled:
-        return None, None
+        return 0.0, 0.0
     recall = sum(row["infographic_correct"] in row["retrieved_infographics"][:3]
                  for row in labeled) / len(labeled)
     rr = []
@@ -135,6 +157,9 @@ def _log_row(qid, question, gold, result, variant, final_k, elapsed_ms):
 
 def _summary(name, logs, weights=None, normalization="raw"):
     recall, mrr = _metrics(logs)
+    num_labeled_queries = sum(
+        row.get("infographic_correct") is not None for row in logs
+    )
     return {
         "variant": name, "Recall@3": recall, "MRR@10": mrr,
         "avg_candidate_facts": statistics.mean(
@@ -146,18 +171,10 @@ def _summary(name, logs, weights=None, normalization="raw"):
         "avg_reranking_time_ms": statistics.mean(
             row["reranking_time_ms"] for row in logs
         ) if logs else 0.0,
-        "num_queries": len(logs), "weights": list(weights) if weights else None,
+        "num_queries": len(logs), "num_labeled_queries": num_labeled_queries,
+        "weights": list(weights) if weights else None,
         "normalization": normalization,
     }
-
-
-def _commit_hash():
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True
-        ).strip()
-    except (OSError, subprocess.CalledProcessError):
-        return None
 
 
 def _paired_analysis(fact_logs, full_logs, output):
@@ -218,33 +235,47 @@ def _paired_analysis(fact_logs, full_logs, output):
     return analysis
 
 
-def _run(args, weights=None):
+def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANTS):
     from src.lilac.retriever.retriever import Retriever
 
     qas = read_json_or_jsonl(args.qa_path)
     gold, questions = _gold(qas), _query_text(qas)
-    retriever = Retriever(cli_args=[
-        "--run_mode", "infovqa_ablation", "--target_dataset", "InfoVQA",
-        "--run_name", f"infovqa_path_{args.split}_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
-        "--force_overwrite", "True",
-    ])
+    if retriever is None:
+        retriever = Retriever(cli_args=[
+            "--run_mode", "infovqa_ablation", "--target_dataset", "InfoVQA",
+            "--run_name", f"infovqa_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
+            "--force_overwrite", "True",
+        ])
     qids = [qid for qid in retriever._questions_manager.get_qid_list() if str(qid) in questions]
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
-    base_results = {}
-    for variant in VARIANTS:
-        for qid in qids:
-            question = retriever._questions_manager.get_question_instance_by_qid(qid)
-            base_results[(variant, str(qid))] = retriever.retrieve_infovqa_ablation(
-                str(qid), question.get_embedding(), variant, args.root_k,
-                args.tile_k, args.final_k
-            )
+    if base_results is None:
+        base_results = {}
+        for variant in variants:
+            LOGGER.info("Starting retrieval variant=%s total=%d", variant, len(qids))
+            for index, qid in enumerate(qids, start=1):
+                query_started = time.perf_counter()
+                question = retriever._questions_manager.get_question_instance_by_qid(qid)
+                base_results[(variant, str(qid))] = retriever.retrieve_infovqa_ablation(
+                    str(qid), question.get_embedding(), variant, args.root_k,
+                    args.tile_k, args.final_k
+                )
+                LOGGER.info(
+                    "Retrieved variant=%s qid=%s progress=%d/%d elapsed_ms=%.1f",
+                    variant, qid, index, len(qids),
+                    (time.perf_counter() - query_started) * 1000,
+                )
+            LOGGER.info("Finished retrieval variant=%s", variant)
     if weights is None:
         weights = (1.0, 0.0, 0.0)
     logs = {}
     all_rows = []
-    for variant in VARIANTS:
+    for variant in variants:
         rows = []
+        LOGGER.info(
+            "Starting reranking variant=%s weights=%s total=%d",
+            variant, weights, len(qids),
+        )
         for qid in qids:
             base = base_results[(variant, str(qid))]
             started = time.perf_counter()
@@ -257,11 +288,17 @@ def _run(args, weights=None):
                 qid, questions[str(qid)], gold, result, variant, args.final_k,
                 (time.perf_counter() - started) * 1000,
             ))
+            if len(rows) == 1 or len(rows) % 25 == 0 or len(rows) == len(qids):
+                LOGGER.info(
+                    "Reranked variant=%s progress=%d/%d",
+                    variant, len(rows), len(qids),
+                )
         logs[variant] = rows
         all_rows.extend(rows)
         with (output / f"path_reranking_per_query_{variant}.jsonl").open("w") as handle:
             for row in rows:
                 handle.write(json.dumps(row) + "\n")
+        LOGGER.info("Finished reranking variant=%s output_rows=%d", variant, len(rows))
     with (output / "path_reranking_per_query.jsonl").open("w") as handle:
         for row in all_rows:
             handle.write(json.dumps(row) + "\n")
@@ -270,7 +307,7 @@ def _run(args, weights=None):
                  args.normalization)
         for variant, rows in logs.items()
     ]
-    (output / f"path_reranking_{args.split}_summary.json").write_text(
+    (output / "path_reranking_test_summary.json").write_text(
         json.dumps(summaries, indent=2)
     )
     (output / "path_score_distributions.json").write_text(
@@ -280,9 +317,11 @@ def _run(args, weights=None):
 
 
 def main():
+    log_path = _configure_logging()
     parser = argparse.ArgumentParser(description="InfoVQA MEHR path-aware ablation")
-    parser.add_argument("--split", choices=("validation", "test"), required=True)
-    parser.add_argument("--qa-path", required=True)
+    parser.add_argument(
+        "--qa-path", default=os.path.join(REPO_ROOT, "datasets", "InfoVQA", "QAs_test.json")
+    )
     parser.add_argument("--output-dir", default=os.path.join(
         REPO_ROOT, "algorithm_results", "LILaC", "InfoVQA", "ablation"
     ))
@@ -292,65 +331,71 @@ def main():
     parser.add_argument("--normalization", choices=("raw", "query_zscore"), default="raw")
     parser.add_argument("--missing-path-policy", choices=("error", "skip"), default="error")
     parser.add_argument("--path-reranking", action="store_true")
-    parser.add_argument("--weights-file")
+    parser.add_argument(
+        "--root-tile-only",
+        action="store_true",
+        help="Only retrieve and evaluate root_tile_facts with the supplied weights.",
+    )
+    parser.add_argument(
+        "--weights-file",
+        help="Optional JSON file containing the full-path weights; "
+             "defaults to equal fact/tile/root weights.",
+    )
     args = parser.parse_args()
-    if args.split == "test" and not args.weights_file:
-        parser.error("--weights-file is required for test; select weights on validation first")
+    LOGGER.info("Starting InfoVQA ablation qa_path=%s log=%s", args.qa_path, log_path)
     output = Path(args.output_dir)
-    if args.split == "validation":
-        all_results = []
-        for weights in WEIGHT_GRID:
-            args.path_reranking = True
-            summaries, _, _ = _run(args, weights)
-            full = next(item for item in summaries if item["variant"] == "root_tile_facts")
-            all_results.append({
-                "weights": list(weights), "selection_score": (
-                    full["Recall@3"] + full["MRR@10"]
-                ) / 2,
-                "summary": full,
-            })
-        all_results.sort(key=lambda row: (
-            -row["selection_score"], -row["weights"][0],
-            sum(value > 0 for value in row["weights"]),
-        ))
-        best = all_results[0]
-        metadata = {
-            "weights": best["weights"], "split": "validation",
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-            "commit_hash": _commit_hash(), "root_k": args.root_k,
-            "tile_k": args.tile_k, "final_k": args.final_k,
-            "normalization": args.normalization,
-        }
-        (output / "selected_path_weights.json").write_text(json.dumps(metadata, indent=2))
-        (output / "path_weight_search_validation.json").write_text(
-            json.dumps(all_results, indent=2)
-        )
-        print(json.dumps({"best_weights": best, "output_dir": str(output)}, indent=2))
-        return
-    weights_data = json.loads(Path(args.weights_file).read_text())
+    weights_data = (
+        json.loads(Path(args.weights_file).read_text())
+        if args.weights_file else {"weights": DEFAULT_PATH_WEIGHTS}
+    )
     args.path_reranking = True
+    variants = ("root_tile_facts",) if args.root_tile_only else VARIANTS
     args.normalization = weights_data.get("normalization", args.normalization)
-    requested = {
-        "MEHR + fact-only": (1.0, 0.0, 0.0),
-        "MEHR + fact+tile": (0.8, 0.2, 0.0),
-        "MEHR + fact+root": (0.8, 0.0, 0.2),
-        "MEHR + full-path": tuple(weights_data["weights"]),
-    }
+    requested = (
+        {
+            "MEHR + fact-only": (1.0, 0.0, 0.0),
+            "MEHR + full-path": tuple(weights_data["weights"]),
+        }
+        if args.root_tile_only else
+        {
+            "MEHR + fact-only": (1.0, 0.0, 0.0),
+            "MEHR + fact+tile": (0.8, 0.2, 0.0),
+            "MEHR + fact+root": (0.8, 0.0, 0.2),
+            "MEHR + full-path": tuple(weights_data["weights"]),
+        }
+    )
+    from src.lilac.retriever.retriever import Retriever
+    retriever = Retriever(cli_args=[
+        "--run_mode", "infovqa_ablation", "--target_dataset", "InfoVQA",
+        "--run_name", f"infovqa_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
+        "--force_overwrite", "True",
+    ])
+    LOGGER.info("Retriever initialized; beginning cached retrieval")
+    base_results = None
     run_data = {}
     for name, weights in requested.items():
-        summaries, logs, _ = _run(args, weights)
+        summaries, logs, base_results = _run(
+            args, weights, retriever=retriever, base_results=base_results,
+            variants=variants,
+        )
         root_summary = next(
             item for item in summaries if item["variant"] == "root_tile_facts"
         )
         root_summary["variant"] = name
         root_summary["weights"] = list(weights)
         run_data[name] = (root_summary, logs["root_tile_facts"])
-    flat_summary = next(
-        item for item in summaries if item["variant"] == "flat_facts"
-    )
-    final_summaries = [flat_summary] + [
-        run_data[name][0] for name in requested
-    ]
+    if args.root_tile_only:
+        final_summaries = [
+            run_data["MEHR + fact-only"][0],
+            run_data["MEHR + full-path"][0],
+        ]
+    else:
+        flat_summary = next(
+            item for item in summaries if item["variant"] == "flat_facts"
+        )
+        final_summaries = [flat_summary] + [
+            run_data[name][0] for name in requested
+        ]
     (output / "path_reranking_test_summary.json").write_text(
         json.dumps(final_summaries, indent=2)
     )
@@ -360,6 +405,7 @@ def main():
         output,
     )
     print(json.dumps({"summaries": final_summaries, "paired_analysis": analysis}, indent=2))
+    LOGGER.info("Completed InfoVQA ablation output_dir=%s", output)
 
 
 if __name__ == "__main__":

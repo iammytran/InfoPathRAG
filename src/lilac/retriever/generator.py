@@ -123,7 +123,7 @@ class Generator:
         self.run_name          = config["run_name"]
         self.target_dataset    = config["target_dataset"]
         self.generation_model  = config["generation_model"]
-        self.retrieval_results_path = "/workspace/LILaC/algorithm_results/LILaC/InfoVQA/retrieval_backup/info_vqa_tree_traversal_copy/info_vqa_tree_traversal.jsonl"
+        self.retrieval_results_path = "/workspace/InfoPathRAG/algorithm_results/LILaC/InfoVQA/retrieval/infovqa_path_test_root100_tile100_final70/infovqa_path_test_root100_tile100_final70.jsonl"
         self.num_components    = config["num_components"]
         self.num_paths         = 1
         self.use_retrieved_paths = config.get("use_retrieved_paths", False)

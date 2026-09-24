@@ -1,0 +1,22 @@
+embedding_model: MM-Embed
+force_overwrite: true
+low_level_embeddings:
+  gpu_num: -1
+  image: subimage
+  table: table_segment
+  text: sentence
+parameters:
+  beam_width: 30
+  hop_mode: 1_hop
+  modality_mode: aware
+  num_iterations: 1
+  target_level: top
+  top_k: 100
+run_mode: iterative_late_interaction
+run_name: mmembed_22081405
+target_dataset: InfoVQA
+top_level_embeddings:
+  gpu_num: -1
+  image: image
+  table: table
+  text: text

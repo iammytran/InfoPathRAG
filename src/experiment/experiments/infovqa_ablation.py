@@ -236,12 +236,12 @@ def _paired_analysis(fact_logs, full_logs, output):
 
 
 def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANTS):
-    from src.lilac.retriever.retriever import Retriever
+    from src.lilac.retriever.infovqa_retriever import InfoVQARetriever
 
     qas = read_json_or_jsonl(args.qa_path)
     gold, questions = _gold(qas), _query_text(qas)
     if retriever is None:
-        retriever = Retriever(cli_args=[
+        retriever = InfoVQARetriever(cli_args=[
             "--run_mode", "infovqa_ablation", "--target_dataset", "InfoVQA",
             "--run_name", f"infovqa_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
             "--force_overwrite", "True",
@@ -364,8 +364,8 @@ def main():
             "MEHR + full-path": tuple(weights_data["weights"]),
         }
     )
-    from src.lilac.retriever.retriever import Retriever
-    retriever = Retriever(cli_args=[
+    from src.lilac.retriever.infovqa_retriever import InfoVQARetriever
+    retriever = InfoVQARetriever(cli_args=[
         "--run_mode", "infovqa_ablation", "--target_dataset", "InfoVQA",
         "--run_name", f"infovqa_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
         "--force_overwrite", "True",

@@ -6,6 +6,7 @@ import faiss
 import torch
 import pickle
 import logging
+import math
 
 import argparse
 from tqdm import tqdm
@@ -83,14 +84,18 @@ class Retriever:
             params["target_level"] = args.parameter_targetlevel
         if args.parameter_topk is not None:
             params["top_k"] = args.parameter_topk
+        if args.parameter_rootk is not None:
+            params["ablation_root_k"] = args.parameter_rootk
+        if args.parameter_tilek is not None:
+            params["ablation_tile_k"] = args.parameter_tilek
         default_config["parameters"] = params
         
-        # if args.lowlevel_text is not None:
-        #     default_config["low_level_embeddings"]["text"] = args.lowlevel_text
-        # if args.lowlevel_table is not None:
-        #     default_config["low_level_embeddings"]["table"] = args.lowlevel_table
-        # if args.lowlevel_image is not None:
-        #     default_config["low_level_embeddings"]["image"] = args.lowlevel_image
+        if args.lowlevel_text is not None:
+            default_config["low_level_embeddings"]["text"] = args.lowlevel_text
+        if args.lowlevel_table is not None:
+            default_config["low_level_embeddings"]["table"] = args.lowlevel_table
+        if args.lowlevel_image is not None:
+            default_config["low_level_embeddings"]["image"] = args.lowlevel_image
         
         # 4) If run_name is still missing, auto-generate it
         #    using the logic specified.
@@ -131,7 +136,7 @@ class Retriever:
         # Initiate multimodal graph
         self.initiate_graph()
         
-        if self._run_function_mode == "late_interaction" or self._run_function_mode == "iterative_late_interaction":
+        if self._run_function_mode == "iterative_late_interaction":
             gpu_num = self._run_config["low_level_embeddings"].get("gpu_num", 0)
             device_str = f"cuda:{gpu_num}" if torch.cuda.is_available() and gpu_num >= 0 else "cpu"
             self._subindexer_low = Subindexer()
@@ -183,16 +188,17 @@ class Retriever:
         self.level_to_indexer = {
             "top": Indexer(),
             "low": Indexer(),
+            "fact": Indexer(),
         }
 
         self._target_embedder = self._run_config["embedding_model"]
         emb_dir = artifact_subpath(self._metadata_config, self._target_dataset, "embeddings_dirname", self._target_embedder)
 
         top_level_pairs = [
-            (os.path.join(emb_dir, self._run_config["top_level_embeddings"]["text"]  + ".pt"),
-             os.path.join(emb_dir, self._run_config["top_level_embeddings"]["text"]  + ".json")),
-            (os.path.join(emb_dir, self._run_config["top_level_embeddings"]["table"] + ".pt"),
-             os.path.join(emb_dir, self._run_config["top_level_embeddings"]["table"] + ".json")),
+            # (os.path.join(emb_dir, self._run_config["top_level_embeddings"]["text"]  + ".pt"),
+            #  os.path.join(emb_dir, self._run_config["top_level_embeddings"]["text"]  + ".json")),
+            # (os.path.join(emb_dir, self._run_config["top_level_embeddings"]["table"] + ".pt"),
+            #  os.path.join(emb_dir, self._run_config["top_level_embeddings"]["table"] + ".json")),
             (os.path.join(emb_dir, self._run_config["top_level_embeddings"]["image"] + ".pt"),
              os.path.join(emb_dir, self._run_config["top_level_embeddings"]["image"] + ".json"))
         ]
@@ -211,13 +217,22 @@ class Retriever:
         self.level_to_indexer["top"].create_index(gpu_id = gpu_num)
         
         low_level_pairs = [
-            (os.path.join(emb_dir, self._run_config["low_level_embeddings"]["text"]  + ".pt"),
-             os.path.join(emb_dir, self._run_config["low_level_embeddings"]["text"]  + ".json")),
-            (os.path.join(emb_dir, self._run_config["low_level_embeddings"]["table"] + ".pt"),
-             os.path.join(emb_dir, self._run_config["low_level_embeddings"]["table"] + ".json")),
+            # (os.path.join(emb_dir, self._run_config["low_level_embeddings"]["text"]  + ".pt"),
+            #  os.path.join(emb_dir, self._run_config["low_level_embeddings"]["text"]  + ".json")),
+            # (os.path.join(emb_dir, self._run_config["low_level_embeddings"]["table"] + ".pt"),
+            #  os.path.join(emb_dir, self._run_config["low_level_embeddings"]["table"] + ".json")),
             (os.path.join(emb_dir, self._run_config["low_level_embeddings"]["image"] + ".pt"),
              os.path.join(emb_dir, self._run_config["low_level_embeddings"]["image"] + ".json")),
         ]
+        facts_pt = os.path.join(emb_dir, "tile_fact.pt")
+        facts_json = os.path.join(emb_dir, "tile_fact.json")
+        if os.path.exists(facts_pt) and os.path.exists(facts_json):
+            low_level_pairs.append((facts_pt, facts_json))
+        fact_pairs = (
+            [(facts_pt, facts_json)]
+            if os.path.exists(facts_pt) and os.path.exists(facts_json)
+            else []
+        )
         # filter by existence
         existing_low_level_pairs = []
         for pair in low_level_pairs:
@@ -230,6 +245,9 @@ class Retriever:
         self.level_to_indexer["low"].load_embeddings(low_level_pairs, show_progress = True)
         gpu_num = self._run_config["low_level_embeddings"].get("gpu_num", -1)
         self.level_to_indexer["low"].create_index(gpu_id = gpu_num)
+        if fact_pairs:
+            self.level_to_indexer["fact"].load_embeddings(fact_pairs, show_progress=True)
+            self.level_to_indexer["fact"].create_index(gpu_id=gpu_num)
 
         self._target_level = self._run_config["parameters"]["target_level"]
         if self._target_level == "both":
@@ -240,39 +258,99 @@ class Retriever:
         else:
             self.level_to_indexer["both"] = None
 
+        low_index = self.level_to_indexer["fact"]
+        print("[DEBUG] all low index targets:")
+        for index, target in list(low_index._idx2target.items())[:30]:
+            print(index, repr(target))
         return
     
     def initiate_graph(self):
-        if self._run_function_mode != "single_knn":
-            self._graph_path = artifact_subpath(self._metadata_config, self._target_dataset, "component_dirname", "graph.pickle")
-            os.makedirs(artifact_subpath(self._metadata_config, self._target_dataset, "component_dirname"), exist_ok=True)
-            if check_file_exists(self._graph_path):
-                print("[Retriever] Loading existing graph …")
-                with open(self._graph_path, "rb") as f:
-                    self.graph = pickle.load(f)
-                print(f"[Retriever] Graph loaded from {self._graph_path}")
-            else:
-                self.graph = Graph(
-                    multimodal_documents_directory = self._parsed_documents_dir,
-                    images_directory    = self._images_dir,
-                    subimages_directory = self._subimages_dir,
-                    summaries_directory = self._summaries_dir
+        component_dir = artifact_subpath(
+            self._metadata_config,
+            self._target_dataset,
+            "component_dirname",
+        )
+        self._graph_path = os.path.join(component_dir, "graph.pickle")
+        os.makedirs(component_dir, exist_ok=True)
+
+        # The tile manifest is the source of truth for the three-level
+        # InfoVQA graph; do not fall back to parse_documents for it.
+        tile_manifest_candidates = (
+            os.path.join(self._benchmark_dir, "tiles", "manifest.json"),
+            os.path.join(REPO_ROOT, "datasets", "InfoVQA", "tiles", "manifest.json"),
+        )
+        tile_manifest = next(
+            (path for path in tile_manifest_candidates if os.path.exists(path)),
+            None,
+        )
+
+        use_tile_graph = (
+            self._target_dataset == "InfoVQA"
+            and tile_manifest is not None
+        )
+        facts_directory = os.path.join(
+            REPO_ROOT,
+            "artifacts",
+            self._target_dataset,
+            "facts_each_tile",
+        )
+
+        if check_file_exists(self._graph_path) and not use_tile_graph:
+            print("[Retriever] Loading existing graph …")
+            with open(self._graph_path, "rb") as f:
+                self.graph = pickle.load(f)
+            print(f"[Retriever] Graph loaded from {self._graph_path}")
+        else:
+            self.graph = Graph(
+                multimodal_documents_directory=self._parsed_documents_dir,
+                images_directory=REPO_ROOT if use_tile_graph else self._images_dir,
+                subimages_directory=self._subimages_dir,
+                summaries_directory=self._summaries_dir,
+            )
+            if use_tile_graph:
+                print("use tile graph")
+                tile_manifest = os.path.join(facts_directory, "manifest.json")
+                self.graph.load_tile_manifest(tile_manifest, facts_directory)
+                documents_with_facts = 0
+                for filename, edges in self.graph.intra_document_edges.items():
+                    tile_ids = [
+                        component_id for component_id in edges
+                        if component_id != "i_1"
+                        and "_t" in component_id
+                        and "_f" not in component_id
+                    ]
+                    if edges.get("i_1") and any(
+                        edges.get(tile_id) for tile_id in tile_ids
+                    ):
+                        documents_with_facts += 1
+                if not documents_with_facts:
+                    raise ValueError(
+                        "Tile manifest graph did not produce the expected "
+                        "i_1 -> tile -> fact hierarchy."
+                    )
+                print(
+                    "[Retriever] Loaded three-level graph: "
+                    "original image -> tiles -> facts"
                 )
+            else:
                 self.graph.parse_documents()
-                with open(self._graph_path, "wb") as f:
-                    pickle.dump(self.graph, f)
-                print(f"[Retriever] Graph saved to {self._graph_path}")
-                
+            with open(self._graph_path, "wb") as f:
+                pickle.dump(self.graph, f)
+            print(f"[Retriever] Graph saved to {self._graph_path}")
         return
-        
-        
-    
-    
-    
-    
-    
-    
-        
+
+    def _retrieve_for_run(self, qid, question_embedding, subquery_embeddings):
+        if self._run_function_mode == "iterative_late_interaction":
+            self._beam_width = self._run_config["parameters"]["beam_width"]
+            self._num_iterations = self._run_config["parameters"]["num_iterations"]
+            return self.retrieve_iterative_late_interaction(
+                qid, question_embedding, subquery_embeddings
+            )
+        raise ValueError(
+            f"Unsupported retrieval mode: {self._run_function_mode}. "
+            "Use iterative_late_interaction."
+        )
+
     def run(self):
         
         # qids = self._labeled_benchmark.get_qid_list()
@@ -285,38 +363,14 @@ class Retriever:
             question_instance: Question = self._questions_manager.get_question_instance_by_qid(qid)
             question_embedding = question_instance.get_embedding()
             subquery_embeddings = question_instance.get_subquery_embedding_list(self._modality_mode)
-            if self._run_function_mode == "single_knn":
-                self._target_level = self._run_config["parameters"]["target_level"]
-                self.retrieve_single_unilevel(qid, question_embedding)
-                
-            elif self._run_function_mode == "single_topdown":
-                self._beam_width = self._run_config["parameters"]["beam_width"]
-                self.retrieve_single_topdown(qid, question_embedding)
-                
-            # elif self._run_function_mode == "decomposed_topdown":
-            #     self._beam_width = self._run_config["parameters"]["beam_width"]
-            #     self.retrieve_decomposed_topdown(qid, question_embedding, subquery_embeddings)
-                
-            elif self._run_function_mode == "late_interaction":
-                self._beam_width = self._run_config["parameters"]["beam_width"]
-                self.retrieve_late_interaction(qid, question_embedding, subquery_embeddings)
-                
-            elif self._run_function_mode == "iterative_late_interaction":
-                self._beam_width = self._run_config["parameters"]["beam_width"]
-                self._num_iterations = self._run_config["parameters"]["num_iterations"]
-                self.retrieve_iterative_late_interaction(qid, question_embedding, subquery_embeddings)
+            self._retrieve_for_run(qid, question_embedding, subquery_embeddings)
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
             yaml.dump(self._run_config, f)
 
         return
-    
-    
-    
-    
-    
-    
+
     def retrieve_iterative_late_interaction(
         self,
         qid: str,
@@ -570,539 +624,6 @@ class Retriever:
     # Late-interaction re-ranking over top-level edges
     # ───────────────────────────────────────────────────────────────────────
     
-    def retrieve_late_interaction(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        query_vec_list: List[torch.Tensor],
-        k_ret: int | None = None,
-    ):
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-        top_level_candidates_num = self._run_config["parameters"]["beam_width"]
-
-        if not query_vec_list:
-            query_vec_list = [query_vec]
-
-        total_start = time.perf_counter()
-        # ─────────────────────────────────────────────────────────────
-        # 1) gather top-level candidates
-        knn_start = time.perf_counter()
-        low_level_indexer = self.level_to_indexer["low"]
-        results = low_level_indexer.knn_search(query_vec, top_k=2048)
-        knn_end = time.perf_counter()
-        
-        top_level_gcid_organizing_start = time.perf_counter()
-        low_level_gcid_list = [r["target"] for r in results]
-        top_level_gcid_list = [top_level_gcid_by_low_level_gcid(g) for g in low_level_gcid_list]
-        distinct_top_gcid_list = []
-        seen = set()
-        for gcid in top_level_gcid_list:
-            if gcid not in seen:
-                seen.add(gcid)
-                distinct_top_gcid_list.append(gcid)
-        # truncate to beam
-        if len(distinct_top_gcid_list) > top_level_candidates_num:
-            distinct_top_gcid_list = distinct_top_gcid_list[:top_level_candidates_num]
-        top_level_gcid_organizing_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 2) build subgraph
-        subgraph_extraction_start = time.perf_counter()
-        subgraph = Subgraph(
-            graph = self.graph,
-            global_top_level_component_id_list = distinct_top_gcid_list
-        )
-        subgraph.extract_edges(self._run_config["parameters"]["hop_mode"])
-        subgraph_top_gcid_list = subgraph.get_top_level_gcids_list()
-        subgraph_extraction_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 3) Build subindex + compute subquery scores on GPU
-        gpu_calculation_start = time.perf_counter()
-        self._subindexer_low.build_subindex(subgraph_top_gcid_list, self.graph)
-        self._subindexer_low.compute_subquery_scores(query_vec_list)
-        low_level_gcids_num = self._subindexer_low.get_low_gcids_num()
-        gpu_calculation_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 4) Score each edge in CPU using late interaction
-        cpu_late_interaction_start = time.perf_counter()
-        edge_list = subgraph.get_retrieval_units_list()
-        scored = []
-        for e_pair in edge_list:
-            if len(e_pair) == 1:
-                # single node
-                e_tup = (tuple(e_pair[0]),)
-                nodes, sc = self._subindexer_low.score_node(e_tup)
-            elif len(e_pair) == 2:
-                e_tup = [tuple(e_pair[0]), tuple(e_pair[1])]
-                nodes, sc = self._subindexer_low.score_edge(e_tup)
-            else:
-                raise ValueError(f"Invalid edge pair: {e_pair}")
-            scored.append({"edge": nodes, "score": sc})
-        cpu_late_interaction_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-        # 5) In-edge reranking
-            # 5.1) Remove duplicates, keep max score
-        in_edge_reranking_start = time.perf_counter()
-        unique_map = {}
-        for item in scored:
-            # We treat the 'edge' as a frozenset of nodes
-            # so that (A,B) and (B,A) are considered the same set
-            edge_key = frozenset(item["edge"])
-            if edge_key not in unique_map:
-                unique_map[edge_key] = item
-            else:
-                # Keep the one with the highest score
-                if item["score"] > unique_map[edge_key]["score"]:
-                    unique_map[edge_key] = item
-
-        scored = list(unique_map.values())
-
-            # Sort & keep top-k
-        scored.sort(key=lambda x: x["score"], reverse=True)
-        top_k = scored[:k_ret] if len(scored) > k_ret else scored
-
-            # 5.2) Re‑order the GCIDs within each edge by
-
-        relevancy_cache = {}
-        low_emb_matrix = self.level_to_indexer["top"].get_embeddings()
-        # build a short helper to get the dot product with the main query_vec
-        device = low_emb_matrix.device
-        query_on_dev = query_vec.to(device, dtype=low_emb_matrix.dtype)
-
-        def get_relevancy(gcid: tuple[str,str]) -> float:
-            """Compute or retrieve the dot product of node’s embedding vs. query."""
-            if gcid in relevancy_cache:
-                return relevancy_cache[gcid]
-            idxer = self.level_to_indexer["top"]
-            try:
-                row_idx = idxer.get_vector_idx_for_target(gcid)
-            except KeyError:
-                # fallback or 0
-                print("[Retriever] KeyError in in-edge reranking: ", gcid)
-                relevancy_cache[gcid] = 0.0
-                return 0.0
-            node_vec = low_emb_matrix[row_idx, :]
-            score = float(torch.dot(node_vec, query_on_dev).item())
-            relevancy_cache[gcid] = score
-            return score
-
-            # Reorder the GCIDs for each item in top_k
-        for item in top_k:
-            if len(item["edge"]) > 1:
-                # Sort the node list by descending relevancy
-                sorted_edge = sorted(
-                    item["edge"],
-                    key=lambda g: get_relevancy(g),
-                    reverse=True
-                )
-                item["edge"] = sorted_edge
-        in_edge_reranking_end = time.perf_counter()
-
-        # ─────────────────────────────────────────────────────────────
-
-        total_end = time.perf_counter()
-        # 5) Build retrieval object
-        retrieved_units = []
-        for it in top_k:
-            if len(it["edge"]) == 2:
-                retrieved_units.append({
-                    "nodes": [list(it["edge"][0]), list(it["edge"][1])],
-                    "edges": [(0, 1)],
-                    "score": it["score"],
-                    "specific_scores": {},
-                    "type": "edge",
-                })
-            else:
-                retrieved_units.append({
-                    "nodes": [list(it["edge"][0])],
-                    "edges": [],
-                    "score": it["score"],
-                    "specific_scores": {},
-                    "type": "node",
-                })
-
-        retrieval_obj = {
-            "qid": qid,
-            "retrieved_units": retrieved_units,
-            "middle_results": {
-                "subgraph_nodes_num": len(subgraph_top_gcid_list),
-                "subgraph_edges_num": len(edge_list),
-                "low_level_gcids_num": low_level_gcids_num
-                },
-            "time": {
-                "retrieval_time(ms)":           (total_end - total_start) * 1000,
-                "knn_search(ms)":               (knn_end - knn_start) * 1000,
-                "top_level_gcid_organizing(ms)": (top_level_gcid_organizing_end - top_level_gcid_organizing_start) * 1000,
-                "subgraph_extraction(ms)":      (subgraph_extraction_end - subgraph_extraction_start) * 1000,
-                "gpu_calculation(ms)":          (gpu_calculation_end - gpu_calculation_start) * 1000,
-                "cpu_late_interaction(ms)":     (cpu_late_interaction_end - cpu_late_interaction_start) * 1000,
-                "in_edge_reranking(ms)":        (in_edge_reranking_end - in_edge_reranking_start) * 1000,
-            }
-        }
-
-        outfile = os.path.join(self._output_dir, self._run_name + ".jsonl")
-        append_to_jsonl_file(retrieval_obj, outfile)
-
-        return retrieval_obj
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    def retrieve_single_unilevel(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        k_ret: int | None = None
-    ) -> dict:
-        """
-        Run k‑NN over `self._faiss_index` for one query vector and
-        return the legacy‑format retrieval object.
-        """
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-
-        # ---- Single kNN search --------------------------------
-        t0 = time.perf_counter()
-        t_knn0 = time.perf_counter()
-        
-        target_indexer: Indexer = self.level_to_indexer[self._target_level]
-        results = target_indexer.knn_search(query_vec, top_k = k_ret)
-        
-        t_knn1 = time.perf_counter()
-        t1 = time.perf_counter()
-
-        # ---- build retrieved_units_list ---------------------------
-        retrieved_units_list = [
-            {
-                "nodes": [res["target"]],
-                "edges": [],
-                "score": res["score"],
-                "specific_scores": {},
-                "type": "node",
-            }
-            for res in results
-        ]
-
-        # ---- wrap in legacy retrieval_obj -------------------------
-        retrieval_obj = {
-            "qid": qid,
-            "middle_results": {},
-            "time": {
-                "retrieval_time(ms)":   (t1 - t0) * 1000,
-                "single_vector_knn(ms)": (t_knn1 - t_knn0) * 1000,
-            },
-            "retrieved_units": retrieved_units_list,
-        }
-
-        # ---- (optional) dump to JSONL per rank --------------------
-        out_dir = self._output_dir
-        outfile = os.path.join(out_dir, self._run_name + ".jsonl")
-        # Save `self._run_config` to the output directory as yaml format
-        append_to_jsonl_file(retrieval_obj, outfile)
-        
-        return retrieval_obj
-    
-    
-    
-    
-    # ───────────────────────────────────────────────────────────────────────
-    # Optimised top-down retrieval
-    # ───────────────────────────────────────────────────────────────────────
-    def retrieve_single_topdown(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        k_ret: int | None = None,
-    ) -> dict:
-        """
-        Top-k retrieval with parent-child re-ranking.
-
-        Steps
-        -----
-        1. top-level FAISS search (beam_width)
-        2. collect **all** child row-indices once
-        3. single torch.matmul(query, child_matrix.T)
-        4. aggregate (max child + parent score) per parent
-        5. keep top-k and output in legacy format
-        """
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-
-        beam_width   = self._beam_width
-        total_start           = time.perf_counter()
-
-        # ── 1) TOP-LEVEL FAISS SEARCH ──────────────────────────────────
-        top_indexer  = self.level_to_indexer["top"]
-        knn_start       = time.perf_counter()
-        top_results  = top_indexer.knn_search(query_vec, top_k = beam_width)
-        knn_end       = time.perf_counter()
-
-        # Short-circuit if nothing found
-        if not top_results:
-            return self.retrieve_single_unilevel(qid, query_vec, k_ret)
-
-        # ── helpers / caches ──────────────────────────────────────────
-        low_indexer = self.level_to_indexer["low"]
-        low_emb     = low_indexer.get_embeddings()         # (N_low, D) torch.Tensor
-        device      = low_emb.device
-
-        # build cache dict if missing
-        if not hasattr(self, "_parent_row_cache"):
-            self._parent_row_cache = {}
-
-        parent_rows_list = []          # list[list[int]]
-        all_rows_set     = set()
-
-        # ── 2) COLLECT CHILD ROW INDICES ONCE ─────────────────────────
-        for cand in top_results:
-            parent_key = tuple(cand["target"])             # (filename, comp_id)
-
-            # cached ?
-            if parent_key in self._parent_row_cache:
-                rows = self._parent_row_cache[parent_key]
-            else:
-                # fetch children from Graph
-                child_components = self.graph.get_children_by_gcid(filename = parent_key[0], component_id = parent_key[1])
-
-                rows = []
-                for child in child_components:
-                    try:
-                        ridx = low_indexer.get_vector_idx_for_target((parent_key[0], child.get_id()))
-                        rows.append(ridx)
-                    except KeyError:
-                        # child embedding missing – skip
-                        continue
-
-                self._parent_row_cache[parent_key] = rows
-
-            parent_rows_list.append(rows)
-            all_rows_set.update(rows)
-
-
-        # If no child rows at all, fall back to parent scores only
-        if not all_rows_set:
-            scored_candidates = [
-                {
-                    "target": cand["target"],
-                    "score":  cand["score"],
-                    "best_child": None,
-                    "best_child_score": None,
-                }
-                for cand in top_results
-            ]
-        else:
-            # ── 3) SINGLE BATCHED DOT-PRODUCT ─────────────────────────
-            sorted_rows  = sorted(all_rows_set)
-            row2local    = {r : i for i, r in enumerate(sorted_rows)}
-
-            sub_emb      = low_emb.index_select(0, torch.tensor(
-                sorted_rows, device=device, dtype=torch.long))     # (M, D)
-            # ensure dtypes
-            q = query_vec.to(device, dtype=sub_emb.dtype)
-            child_scores = torch.matmul(sub_emb, q)                # (M,)
-
-            # helper to fetch best child score per parent
-            scored_candidates = []
-            for cand, rows in zip(top_results, parent_rows_list):
-                if not rows:
-                    best_child_score = 0.0
-                    best_child_id    = None
-                else:
-                    local_idx        = [row2local[r] for r in rows]
-                    local_scores     = child_scores[local_idx]
-                    best_pos         = torch.argmax(local_scores).item()
-                    best_child_score = local_scores[best_pos].item()
-                    # Retrieve child ID for bookkeeping (optional)
-                    best_row         = rows[best_pos]
-                    best_child_id    = low_indexer._idx2target[str(best_row)]
-
-                    # Various score choices                
-                # final_score = cand["score"] * 0.5 + best_child_score * 0.5
-                final_score = best_child_score
-                
-                scored_candidates.append({
-                    "target":           cand["target"],
-                    "score":            final_score,
-                    "best_child":       best_child_id,
-                    "best_child_score": best_child_score,
-                })
-
-        # ── 4) FINAL RANK & TRUNCATE ─────────────────────────────────
-        scored_candidates.sort(key=lambda x: x["score"], reverse=True)
-        final_candidates = scored_candidates[:k_ret]
-        t1 = time.perf_counter()
-
-        # ── 5) BUILD LEGACY OUTPUT OBJ ───────────────────────────────
-        retrieved_units_list = [
-            {
-                "nodes": [cand["target"]],
-                "edges": [],
-                "score": cand["score"],
-                "specific_scores": {
-                    "best_child":       cand["best_child"],
-                    "best_child_score": cand["best_child_score"],
-                },
-                "type": "node",
-            }
-            for cand in final_candidates
-        ]
-
-        retrieval_obj = {
-            "qid": qid,
-            "middle_results": {},
-            "time": {
-                "retrieval_time(ms)":      (t1 - total_start)     * 1000,
-                "single_vector_knn(ms)":   (knn_end - knn_start) * 1000,
-            },
-            "retrieved_units": retrieved_units_list,
-        }
-
-        outfile = os.path.join(self._output_dir, self._run_name + ".jsonl")
-        append_to_jsonl_file(retrieval_obj, outfile)
-        return retrieval_obj
-
-    
-    
-    
-    
-    
-    
-    
-    def retrieve_decomposed_topdown(
-        self,
-        qid: str,
-        query_vec: torch.Tensor,
-        query_vec_list: List[torch.Tensor],       # one per sub-query
-        k_ret: int | None = None,
-    ) -> dict:
-        
-        """
-        Beam search over sub-queries.
-
-        • Start with sub-query-0 → low-level FAISS (beam_width results).
-        • For each next sub-query, expand every path with *all* neighbours
-        (same-doc + inter-doc) of its current tail.
-        • Path score = Σ sub-query-level dot-products.
-        """
-        
-        if k_ret is None:
-            k_ret = int(self._run_config["parameters"]["top_k"])
-
-        B         = self._beam_width
-        low_idx   = self.level_to_indexer["low"]
-        low_emb   = low_idx.get_embeddings()
-        device    = low_emb.device
-        t0        = time.perf_counter()
-
-        # ── iteration 0 : plain k-NN ────────────────────────────────────
-        first_vec   = query_vec_list[0]
-        first_hits  = low_idx.knn_search(first_vec, top_k = B)
-        beam = [
-            {
-                "path":  [tuple(hit["target"])],   # list[(fname,cid)]
-                "score": hit["score"],
-            }
-            for hit in first_hits
-        ]
-
-        # ── subsequent sub-queries ─────────────────────────────────────
-        for depth in range(1, len(query_vec_list)):
-
-            qvec = query_vec_list[depth].to(device, dtype=low_emb.dtype)
-
-            # ---- gather unique candidate rows for this depth ----
-            cand_ckeys: List[Tuple[str, str]] = []
-            for entry in beam:
-                tail = entry["path"][-1]
-                cand_ckeys.extend(self._get_neighbors(tail))
-            cand_ckeys = list({ck for ck in cand_ckeys})        # de-dup
-
-            # map → row index
-            row_map = {}
-            for ck in cand_ckeys:
-                try:
-                    row_map[ck] = low_idx.get_vector_idx_for_target(list(ck))
-                except KeyError:
-                    continue
-            if not row_map:
-                break
-
-            rows     = list(row_map.values())
-            mat_emb  = low_emb.index_select(0, torch.tensor(rows, device = device))
-            sim_vec  = torch.matmul(mat_emb, qvec).cpu()
-            ck2score = {ck: sim_vec[i].item() for i, ck in enumerate(row_map)}
-
-            # ---- expand beam ----
-            new_paths: List[Dict[str, Any]] = []
-            for entry in beam:
-                tail = entry["path"][-1]
-                for neigh in self._get_neighbors(tail):
-                    if neigh not in ck2score:
-                        continue
-                    new_paths.append({
-                        "path":  entry["path"] + [neigh],
-                        "score": entry["score"] + ck2score[neigh],
-                    })
-
-            if not new_paths:                                   # stagnation
-                break
-            # keep top-B
-            new_paths.sort(key=lambda x: x["score"], reverse=True)
-            beam = new_paths[ : B]
-
-        # ── final top-k selection ──────────────────────────────────────
-        beam.sort(key=lambda x: x["score"], reverse=True)
-        final = beam[:k_ret]
-        t1 = time.perf_counter()
-
-        retrieved_units = [
-            {
-                "nodes": path["path"],
-                "edges": [],                       # path edges optional
-                "score": path["score"],
-                "specific_scores": {},             # fill if needed
-                "type": "path",
-            }
-            for path in final
-        ]
-
-        retrieval_obj = {
-            "qid": qid,
-            "middle_results": {},
-            "time": {
-                "retrieval_time(ms)": (t1 - t0) * 1000,
-            },
-            "retrieved_units": retrieved_units,
-        }
-
-        outfile = os.path.join(self._output_dir, self._run_name + ".jsonl")
-        append_to_jsonl_file(retrieval_obj, outfile)
-        return retrieval_obj
-    
-        raise NotImplementedError("Decomposed top-down retrieval not implemented yet.")
-    
-
-
-
-
-
-
 def main():
     retriever = Retriever()
     retriever.run()
@@ -1126,16 +647,8 @@ def parse_arguments(argv=None) -> argparse.Namespace:
     parser.add_argument(
         "--run_mode",
         type=str,
-        choices=[
-            "single_knn",
-            "single_topdown",
-            "decomposed_topdown",
-            "late_interaction",
-            "iterative_late_interaction",
-            "infovqa_ablation",
-        ],
         default=None,
-        help="One of single_knn, single_topdown, decomposed_topdown, late_interaction."
+        help="Choose the retrieval mode."
     )
     parser.add_argument(
         "--target_dataset",
@@ -1159,6 +672,18 @@ def parse_arguments(argv=None) -> argparse.Namespace:
         help="Override for 'top_k' in config (default=200)."
     )
     parser.add_argument(
+        "--parameter_rootk",
+        type=int,
+        default=None,
+        help="Number of top-level root candidates for tree traversal.",
+    )
+    parser.add_argument(
+        "--parameter_tilek",
+        type=int,
+        default=None,
+        help="Number of tile candidates for tree traversal.",
+    )
+    parser.add_argument(
         "--parameter_beamwidth",
         type=int,
         default=None,
@@ -1171,21 +696,21 @@ def parse_arguments(argv=None) -> argparse.Namespace:
         help="Number of retrieval iterations."
     )
     
-    # parser.add_argument(
-    #     "--lowlevel_text",
-    #     type = str,
-    #     default = None,        
-    # )
-    # parser.add_argument(
-    #     "--lowlevel_table",
-    #     type = str,
-    #     default = None,        
-    # )
-    # parser.add_argument(
-    #     "--lowlevel_image",
-    #     type = str,
-    #     default = None,        
-    # )
+    parser.add_argument(
+        "--lowlevel_text",
+        type = str,
+        default = None,        
+    )
+    parser.add_argument(
+        "--lowlevel_table",
+        type = str,
+        default = None,        
+    )
+    parser.add_argument(
+        "--lowlevel_image",
+        type = str,
+        default = None,        
+    )
     
     parser.add_argument(
         "--force_overwrite", 
@@ -1232,10 +757,8 @@ def auto_generate_run_name(config: Dict[str, Any]) -> str:
 
     # Define relevant parameters for each run_mode
     relevant_map = {
-        "single_knn":         ["target_level", "top_k"],
-        "single_topdown":     ["beam_width",   "top_k"],
-        "decomposed_topdown": ["beam_width",   "top_k"],
-        "late_interaction":   ["beam_width",   "hop_mode", "target_level", "top_k"],
+        "iterative_late_interaction": ["beam_width", "num_iterations", "top_k"],
+        "infovqa_ablation": ["top_k", "ablation_root_k", "ablation_tile_k"],
     }
 
     # Find relevant params. If run_mode is not recognized,

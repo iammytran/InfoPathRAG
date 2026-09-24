@@ -14,7 +14,7 @@ run_mode: mcts
 # target_dataset: SlideVQA
 # target_dataset: MP-DocVQA
 # target_dataset: MMCoQA
-target_dataset: MultimodalQA
+target_dataset: InfoVQA
 
 embedding_model: MM-Embed
 # embedding_model: UniME
@@ -29,7 +29,6 @@ parameters:
   target_level: top
 
   top_k: 300
-  mcts_simulations: 64
   tree_traversal_top_k: 100
 
 force_overwrite: false

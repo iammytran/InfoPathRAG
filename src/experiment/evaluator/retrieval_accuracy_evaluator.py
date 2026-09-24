@@ -51,7 +51,7 @@ class VQABenchmarkRetrievalAccuracyEvaluator(RetrievalAccuracyEvaluator):
         retrieval_accuracy = eval_mrr(qrels, qid_to_retrieved_components, cutoff = 10)
         
         self._accuracy_dict = {
-            str(RetrievalMetric.PAGE_RECALL.value): eval_recall(qrels, qid_to_retrieved_components, cutoff = 9),
+            str(RetrievalMetric.PAGE_RECALL.value): eval_recall(qrels, qid_to_retrieved_components, cutoff = 3),
             str(RetrievalMetric.MRR.value): retrieval_accuracy
         }
         

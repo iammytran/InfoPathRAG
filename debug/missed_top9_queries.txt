@@ -1,0 +1,1470 @@
+================================================================================
+QID: 41142.jpeg-2
+Ground Truth Document ID: 41142
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 70572      | Score: 0.25730 | Node: [['70572.json', 'i_1']]
+  Rank  2 | Doc ID: 37318      | Score: 0.25537 | Node: [['37318.json', 'i_1']]
+  Rank  3 | Doc ID: 40467      | Score: 0.22615 | Node: [['40467.json', 'i_1']]
+  Rank  4 | Doc ID: 20131      | Score: 0.21886 | Node: [['20131.json', 'i_1']]
+  Rank  5 | Doc ID: 44541      | Score: 0.21165 | Node: [['44541.json', 'i_1']]
+  Rank  6 | Doc ID: 41045      | Score: 0.20484 | Node: [['41045.json', 'i_1']]
+  Rank  7 | Doc ID: 37054      | Score: 0.19796 | Node: [['37054.json', 'i_1']]
+  Rank  8 | Doc ID: 70206      | Score: 0.19253 | Node: [['70206.json', 'i_1']]
+  Rank  9 | Doc ID: 20180      | Score: 0.19143 | Node: [['20180.json', 'i_1']]
+
+================================================================================
+QID: 43600.jpeg-1
+Ground Truth Document ID: 43600
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20160      | Score: 0.37080 | Node: [['20160.json', 'i_1']]
+  Rank  2 | Doc ID: 20267      | Score: 0.34431 | Node: [['20267.json', 'i_1']]
+  Rank  3 | Doc ID: 20098      | Score: 0.32406 | Node: [['20098.json', 'i_1']]
+  Rank  4 | Doc ID: 37366      | Score: 0.31183 | Node: [['37366.json', 'i_1']]
+  Rank  5 | Doc ID: 37391      | Score: 0.30266 | Node: [['37391.json', 'i_1']]
+  Rank  6 | Doc ID: 37313      | Score: 0.30097 | Node: [['37313.json', 'i_1']]
+  Rank  7 | Doc ID: 70059      | Score: 0.29871 | Node: [['70059.json', 'i_1']]
+  Rank  8 | Doc ID: 10796      | Score: 0.29821 | Node: [['10796.json', 'i_1']]
+  Rank  9 | Doc ID: 37159      | Score: 0.29785 | Node: [['37159.json', 'i_1']]
+
+================================================================================
+QID: 43600.jpeg-3
+Ground Truth Document ID: 43600
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 10765      | Score: 0.40223 | Node: [['10765.json', 'i_1']]
+  Rank  2 | Doc ID: 40927      | Score: 0.39245 | Node: [['40927.json', 'i_1']]
+  Rank  3 | Doc ID: 40797      | Score: 0.32681 | Node: [['40797.json', 'i_1']]
+  Rank  4 | Doc ID: 39363      | Score: 0.32237 | Node: [['39363.json', 'i_1']]
+  Rank  5 | Doc ID: 39695      | Score: 0.32110 | Node: [['39695.json', 'i_1']]
+  Rank  6 | Doc ID: 44871      | Score: 0.31755 | Node: [['44871.json', 'i_1']]
+  Rank  7 | Doc ID: 37197      | Score: 0.31234 | Node: [['37197.json', 'i_1']]
+  Rank  8 | Doc ID: 37051      | Score: 0.31082 | Node: [['37051.json', 'i_1']]
+  Rank  9 | Doc ID: 36995      | Score: 0.30241 | Node: [['36995.json', 'i_1']]
+
+================================================================================
+QID: 43600.jpeg-5
+Ground Truth Document ID: 43600
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20098      | Score: 0.33116 | Node: [['20098.json', 'i_1']]
+  Rank  2 | Doc ID: 10796      | Score: 0.32488 | Node: [['10796.json', 'i_1']]
+  Rank  3 | Doc ID: 20160      | Score: 0.31556 | Node: [['20160.json', 'i_1']]
+  Rank  4 | Doc ID: 36988      | Score: 0.31476 | Node: [['36988.json', 'i_1']]
+  Rank  5 | Doc ID: 37042      | Score: 0.30826 | Node: [['37042.json', 'i_1']]
+  Rank  6 | Doc ID: 40927      | Score: 0.30610 | Node: [['40927.json', 'i_1']]
+  Rank  7 | Doc ID: 20267      | Score: 0.30170 | Node: [['20267.json', 'i_1']]
+  Rank  8 | Doc ID: 20354      | Score: 0.28997 | Node: [['20354.json', 'i_1']]
+  Rank  9 | Doc ID: 44787      | Score: 0.28930 | Node: [['44787.json', 'i_1']]
+
+================================================================================
+QID: 43600.jpeg-6
+Ground Truth Document ID: 43600
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36934      | Score: 0.41413 | Node: [['36934.json', 'i_1']]
+  Rank  2 | Doc ID: 36935      | Score: 0.39380 | Node: [['36935.json', 'i_1']]
+  Rank  3 | Doc ID: 37001      | Score: 0.33749 | Node: [['37001.json', 'i_1']]
+  Rank  4 | Doc ID: 37190      | Score: 0.33274 | Node: [['37190.json', 'i_1']]
+  Rank  5 | Doc ID: 44371      | Score: 0.32994 | Node: [['44371.json', 'i_1']]
+  Rank  6 | Doc ID: 34642      | Score: 0.32229 | Node: [['34642.json', 'i_1']]
+  Rank  7 | Doc ID: 35778      | Score: 0.32082 | Node: [['35778.json', 'i_1']]
+  Rank  8 | Doc ID: 40927      | Score: 0.31954 | Node: [['40927.json', 'i_1']]
+  Rank  9 | Doc ID: 39310      | Score: 0.31770 | Node: [['39310.json', 'i_1']]
+
+================================================================================
+QID: 42093.jpeg-1
+Ground Truth Document ID: 42093
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 42012      | Score: 0.74032 | Node: [['42012.json', 'i_1']]
+  Rank  2 | Doc ID: 41833      | Score: 0.71701 | Node: [['41833.json', 'i_1']]
+  Rank  3 | Doc ID: 41699      | Score: 0.68948 | Node: [['41699.json', 'i_1']]
+  Rank  4 | Doc ID: 42077      | Score: 0.67167 | Node: [['42077.json', 'i_1']]
+  Rank  5 | Doc ID: 41966      | Score: 0.66875 | Node: [['41966.json', 'i_1']]
+  Rank  6 | Doc ID: 70344      | Score: 0.64528 | Node: [['70344.json', 'i_1']]
+  Rank  7 | Doc ID: 41787      | Score: 0.62946 | Node: [['41787.json', 'i_1']]
+  Rank  8 | Doc ID: 42097      | Score: 0.62681 | Node: [['42097.json', 'i_1']]
+  Rank  9 | Doc ID: 41785      | Score: 0.59103 | Node: [['41785.json', 'i_1']]
+
+================================================================================
+QID: 42093.jpeg-6
+Ground Truth Document ID: 42093
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41699      | Score: 0.68140 | Node: [['41699.json', 'i_1']]
+  Rank  2 | Doc ID: 42012      | Score: 0.63352 | Node: [['42012.json', 'i_1']]
+  Rank  3 | Doc ID: 42097      | Score: 0.59666 | Node: [['42097.json', 'i_1']]
+  Rank  4 | Doc ID: 41833      | Score: 0.59051 | Node: [['41833.json', 'i_1']]
+  Rank  5 | Doc ID: 42077      | Score: 0.58028 | Node: [['42077.json', 'i_1']]
+  Rank  6 | Doc ID: 42050      | Score: 0.56392 | Node: [['42050.json', 'i_1']]
+  Rank  7 | Doc ID: 41785      | Score: 0.55666 | Node: [['41785.json', 'i_1']]
+  Rank  8 | Doc ID: 33136      | Score: 0.53533 | Node: [['33136.json', 'i_1']]
+  Rank  9 | Doc ID: 41724      | Score: 0.51562 | Node: [['41724.json', 'i_1']]
+
+================================================================================
+QID: 41587.jpeg-3
+Ground Truth Document ID: 41587
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41650      | Score: 0.39276 | Node: [['41650.json', 'i_1']]
+  Rank  2 | Doc ID: 35779      | Score: 0.28991 | Node: [['35779.json', 'i_1']]
+  Rank  3 | Doc ID: 37170      | Score: 0.28102 | Node: [['37170.json', 'i_1']]
+  Rank  4 | Doc ID: 20267      | Score: 0.28047 | Node: [['20267.json', 'i_1']]
+  Rank  5 | Doc ID: 35337      | Score: 0.26285 | Node: [['35337.json', 'i_1']]
+  Rank  6 | Doc ID: 40797      | Score: 0.25710 | Node: [['40797.json', 'i_1']]
+  Rank  7 | Doc ID: 39473      | Score: 0.25454 | Node: [['39473.json', 'i_1']]
+  Rank  8 | Doc ID: 39695      | Score: 0.25246 | Node: [['39695.json', 'i_1']]
+  Rank  9 | Doc ID: 44824      | Score: 0.25062 | Node: [['44824.json', 'i_1']]
+
+================================================================================
+QID: 41587.jpeg-6
+Ground Truth Document ID: 41587
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41650      | Score: 0.17034 | Node: [['41650.json', 'i_1']]
+  Rank  2 | Doc ID: 20067      | Score: 0.15725 | Node: [['20067.json', 'i_1']]
+  Rank  3 | Doc ID: 40606      | Score: 0.15396 | Node: [['40606.json', 'i_1']]
+  Rank  4 | Doc ID: 39983      | Score: 0.15209 | Node: [['39983.json', 'i_1']]
+  Rank  5 | Doc ID: 39695      | Score: 0.15156 | Node: [['39695.json', 'i_1']]
+  Rank  6 | Doc ID: 40129      | Score: 0.14945 | Node: [['40129.json', 'i_1']]
+  Rank  7 | Doc ID: 10488      | Score: 0.14939 | Node: [['10488.json', 'i_1']]
+  Rank  8 | Doc ID: 45017      | Score: 0.14618 | Node: [['45017.json', 'i_1']]
+  Rank  9 | Doc ID: 32369      | Score: 0.14364 | Node: [['32369.json', 'i_1']]
+
+================================================================================
+QID: 41587.jpeg-10
+Ground Truth Document ID: 41587
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41575      | Score: 0.22805 | Node: [['41575.json', 'i_1']]
+  Rank  2 | Doc ID: 20187      | Score: 0.19260 | Node: [['20187.json', 'i_1']]
+  Rank  3 | Doc ID: 36966      | Score: 0.18073 | Node: [['36966.json', 'i_1']]
+  Rank  4 | Doc ID: 41650      | Score: 0.17561 | Node: [['41650.json', 'i_1']]
+  Rank  5 | Doc ID: 45032      | Score: 0.17489 | Node: [['45032.json', 'i_1']]
+  Rank  6 | Doc ID: 39766      | Score: 0.16666 | Node: [['39766.json', 'i_1']]
+  Rank  7 | Doc ID: 44970      | Score: 0.16588 | Node: [['44970.json', 'i_1']]
+  Rank  8 | Doc ID: 44536      | Score: 0.16558 | Node: [['44536.json', 'i_1']]
+  Rank  9 | Doc ID: 35294      | Score: 0.16201 | Node: [['35294.json', 'i_1']]
+
+================================================================================
+QID: 35329.jpeg-2
+Ground Truth Document ID: 35329
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37197      | Score: 0.44499 | Node: [['37197.json', 'i_1']]
+  Rank  2 | Doc ID: 44771      | Score: 0.43944 | Node: [['44771.json', 'i_1']]
+  Rank  3 | Doc ID: 37029      | Score: 0.43841 | Node: [['37029.json', 'i_1']]
+  Rank  4 | Doc ID: 37320      | Score: 0.43711 | Node: [['37320.json', 'i_1']]
+  Rank  5 | Doc ID: 36948      | Score: 0.42113 | Node: [['36948.json', 'i_1']]
+  Rank  6 | Doc ID: 37299      | Score: 0.41014 | Node: [['37299.json', 'i_1']]
+  Rank  7 | Doc ID: 37159      | Score: 0.38666 | Node: [['37159.json', 'i_1']]
+  Rank  8 | Doc ID: 37262      | Score: 0.38497 | Node: [['37262.json', 'i_1']]
+  Rank  9 | Doc ID: 37036      | Score: 0.38006 | Node: [['37036.json', 'i_1']]
+
+================================================================================
+QID: 37107.jpeg-3
+Ground Truth Document ID: 37107
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37190      | Score: 0.91263 | Node: [['37190.json', 'i_1']]
+  Rank  2 | Doc ID: 36948      | Score: 0.86806 | Node: [['36948.json', 'i_1']]
+  Rank  3 | Doc ID: 37197      | Score: 0.83755 | Node: [['37197.json', 'i_1']]
+  Rank  4 | Doc ID: 37366      | Score: 0.82020 | Node: [['37366.json', 'i_1']]
+  Rank  5 | Doc ID: 37400      | Score: 0.81093 | Node: [['37400.json', 'i_1']]
+  Rank  6 | Doc ID: 37036      | Score: 0.78490 | Node: [['37036.json', 'i_1']]
+  Rank  7 | Doc ID: 37083      | Score: 0.76324 | Node: [['37083.json', 'i_1']]
+  Rank  8 | Doc ID: 37029      | Score: 0.75449 | Node: [['37029.json', 'i_1']]
+  Rank  9 | Doc ID: 20153      | Score: 0.75213 | Node: [['20153.json', 'i_1']]
+
+================================================================================
+QID: 37324.jpeg-1
+Ground Truth Document ID: 37324
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37083      | Score: 0.55950 | Node: [['37083.json', 'i_1']]
+  Rank  2 | Doc ID: 37395      | Score: 0.49364 | Node: [['37395.json', 'i_1']]
+  Rank  3 | Doc ID: 37036      | Score: 0.49020 | Node: [['37036.json', 'i_1']]
+  Rank  4 | Doc ID: 37372      | Score: 0.47337 | Node: [['37372.json', 'i_1']]
+  Rank  5 | Doc ID: 37057      | Score: 0.46857 | Node: [['37057.json', 'i_1']]
+  Rank  6 | Doc ID: 37033      | Score: 0.46156 | Node: [['37033.json', 'i_1']]
+  Rank  7 | Doc ID: 37100      | Score: 0.43910 | Node: [['37100.json', 'i_1']]
+  Rank  8 | Doc ID: 37029      | Score: 0.43768 | Node: [['37029.json', 'i_1']]
+  Rank  9 | Doc ID: 37054      | Score: 0.43463 | Node: [['37054.json', 'i_1']]
+
+================================================================================
+QID: 36955.jpeg-1
+Ground Truth Document ID: 36955
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37274      | Score: 0.45158 | Node: [['37274.json', 'i_1']]
+  Rank  2 | Doc ID: 37320      | Score: 0.40622 | Node: [['37320.json', 'i_1']]
+  Rank  3 | Doc ID: 36993      | Score: 0.40479 | Node: [['36993.json', 'i_1']]
+  Rank  4 | Doc ID: 36983      | Score: 0.35951 | Node: [['36983.json', 'i_1']]
+  Rank  5 | Doc ID: 11228      | Score: 0.35192 | Node: [['11228.json', 'i_1']]
+  Rank  6 | Doc ID: 37024      | Score: 0.34585 | Node: [['37024.json', 'i_1']]
+  Rank  7 | Doc ID: 20313      | Score: 0.34247 | Node: [['20313.json', 'i_1']]
+  Rank  8 | Doc ID: 37307      | Score: 0.33910 | Node: [['37307.json', 'i_1']]
+  Rank  9 | Doc ID: 44771      | Score: 0.32359 | Node: [['44771.json', 'i_1']]
+
+================================================================================
+QID: 36955.jpeg-4
+Ground Truth Document ID: 36955
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36993      | Score: 0.76603 | Node: [['36993.json', 'i_1']]
+  Rank  2 | Doc ID: 37274      | Score: 0.75249 | Node: [['37274.json', 'i_1']]
+  Rank  3 | Doc ID: 37320      | Score: 0.73017 | Node: [['37320.json', 'i_1']]
+  Rank  4 | Doc ID: 37257      | Score: 0.67925 | Node: [['37257.json', 'i_1']]
+  Rank  5 | Doc ID: 44771      | Score: 0.67074 | Node: [['44771.json', 'i_1']]
+  Rank  6 | Doc ID: 36934      | Score: 0.66929 | Node: [['36934.json', 'i_1']]
+  Rank  7 | Doc ID: 20313      | Score: 0.66430 | Node: [['20313.json', 'i_1']]
+  Rank  8 | Doc ID: 36983      | Score: 0.66211 | Node: [['36983.json', 'i_1']]
+  Rank  9 | Doc ID: 37372      | Score: 0.64995 | Node: [['37372.json', 'i_1']]
+
+================================================================================
+QID: 44957.jpeg-1
+Ground Truth Document ID: 44957
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 32937      | Score: 0.28322 | Node: [['32937.json', 'i_1']]
+  Rank  2 | Doc ID: 20180      | Score: 0.18355 | Node: [['20180.json', 'i_1']]
+  Rank  3 | Doc ID: 35087      | Score: 0.18015 | Node: [['35087.json', 'i_1']]
+  Rank  4 | Doc ID: 33159      | Score: 0.15748 | Node: [['33159.json', 'i_1']]
+  Rank  5 | Doc ID: 10584      | Score: 0.14602 | Node: [['10584.json', 'i_1']]
+  Rank  6 | Doc ID: 30411      | Score: 0.14574 | Node: [['30411.json', 'i_1']]
+  Rank  7 | Doc ID: 33649      | Score: 0.13460 | Node: [['33649.json', 'i_1']]
+  Rank  8 | Doc ID: 33961      | Score: 0.13370 | Node: [['33961.json', 'i_1']]
+  Rank  9 | Doc ID: 20131      | Score: 0.13081 | Node: [['20131.json', 'i_1']]
+
+================================================================================
+QID: 44957.jpeg-2
+Ground Truth Document ID: 44957
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 31539      | Score: 0.17371 | Node: [['31539.json', 'i_1']]
+  Rank  2 | Doc ID: 40064      | Score: 0.14491 | Node: [['40064.json', 'i_1']]
+  Rank  3 | Doc ID: 20156      | Score: 0.14247 | Node: [['20156.json', 'i_1']]
+  Rank  4 | Doc ID: 32937      | Score: 0.14128 | Node: [['32937.json', 'i_1']]
+  Rank  5 | Doc ID: 20131      | Score: 0.13764 | Node: [['20131.json', 'i_1']]
+  Rank  6 | Doc ID: 40826      | Score: 0.12909 | Node: [['40826.json', 'i_1']]
+  Rank  7 | Doc ID: 32567      | Score: 0.12466 | Node: [['32567.json', 'i_1']]
+  Rank  8 | Doc ID: 39837      | Score: 0.11844 | Node: [['39837.json', 'i_1']]
+  Rank  9 | Doc ID: 10829      | Score: 0.11610 | Node: [['10829.json', 'i_1']]
+
+================================================================================
+QID: 44957.jpeg-5
+Ground Truth Document ID: 44957
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37170      | Score: 0.19418 | Node: [['37170.json', 'i_1']]
+  Rank  2 | Doc ID: 32937      | Score: 0.18315 | Node: [['32937.json', 'i_1']]
+  Rank  3 | Doc ID: 40786      | Score: 0.13160 | Node: [['40786.json', 'i_1']]
+  Rank  4 | Doc ID: 20096      | Score: 0.13078 | Node: [['20096.json', 'i_1']]
+  Rank  5 | Doc ID: 39837      | Score: 0.12909 | Node: [['39837.json', 'i_1']]
+  Rank  6 | Doc ID: 39449      | Score: 0.12885 | Node: [['39449.json', 'i_1']]
+  Rank  7 | Doc ID: 10829      | Score: 0.12563 | Node: [['10829.json', 'i_1']]
+  Rank  8 | Doc ID: 37040      | Score: 0.12200 | Node: [['37040.json', 'i_1']]
+  Rank  9 | Doc ID: 40826      | Score: 0.12109 | Node: [['40826.json', 'i_1']]
+
+================================================================================
+QID: 44957.jpeg-7
+Ground Truth Document ID: 44957
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20197      | Score: 0.17885 | Node: [['20197.json', 'i_1']]
+  Rank  2 | Doc ID: 44536      | Score: 0.16570 | Node: [['44536.json', 'i_1']]
+  Rank  3 | Doc ID: 32308      | Score: 0.15520 | Node: [['32308.json', 'i_1']]
+  Rank  4 | Doc ID: 20110      | Score: 0.14394 | Node: [['20110.json', 'i_1']]
+  Rank  5 | Doc ID: 42097      | Score: 0.14034 | Node: [['42097.json', 'i_1']]
+  Rank  6 | Doc ID: 43081      | Score: 0.13665 | Node: [['43081.json', 'i_1']]
+  Rank  7 | Doc ID: 39634      | Score: 0.13603 | Node: [['39634.json', 'i_1']]
+  Rank  8 | Doc ID: 30341      | Score: 0.13559 | Node: [['30341.json', 'i_1']]
+  Rank  9 | Doc ID: 43982      | Score: 0.13428 | Node: [['43982.json', 'i_1']]
+
+================================================================================
+QID: 37105.jpeg-1
+Ground Truth Document ID: 37105
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36966      | Score: 0.43913 | Node: [['36966.json', 'i_1']]
+  Rank  2 | Doc ID: 37033      | Score: 0.38309 | Node: [['37033.json', 'i_1']]
+  Rank  3 | Doc ID: 37083      | Score: 0.37910 | Node: [['37083.json', 'i_1']]
+  Rank  4 | Doc ID: 20327      | Score: 0.35762 | Node: [['20327.json', 'i_1']]
+  Rank  5 | Doc ID: 37262      | Score: 0.34559 | Node: [['37262.json', 'i_1']]
+  Rank  6 | Doc ID: 37138      | Score: 0.32939 | Node: [['37138.json', 'i_1']]
+  Rank  7 | Doc ID: 36955      | Score: 0.32306 | Node: [['36955.json', 'i_1']]
+  Rank  8 | Doc ID: 37366      | Score: 0.31615 | Node: [['37366.json', 'i_1']]
+  Rank  9 | Doc ID: 20098      | Score: 0.31080 | Node: [['20098.json', 'i_1']]
+
+================================================================================
+QID: 37105.jpeg-2
+Ground Truth Document ID: 37105
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36966      | Score: 0.76596 | Node: [['36966.json', 'i_1']]
+  Rank  2 | Doc ID: 20327      | Score: 0.65179 | Node: [['20327.json', 'i_1']]
+  Rank  3 | Doc ID: 37083      | Score: 0.58460 | Node: [['37083.json', 'i_1']]
+  Rank  4 | Doc ID: 37033      | Score: 0.58048 | Node: [['37033.json', 'i_1']]
+  Rank  5 | Doc ID: 37165      | Score: 0.55894 | Node: [['37165.json', 'i_1']]
+  Rank  6 | Doc ID: 37274      | Score: 0.55233 | Node: [['37274.json', 'i_1']]
+  Rank  7 | Doc ID: 20153      | Score: 0.55127 | Node: [['20153.json', 'i_1']]
+  Rank  8 | Doc ID: 36948      | Score: 0.54239 | Node: [['36948.json', 'i_1']]
+  Rank  9 | Doc ID: 37388      | Score: 0.54115 | Node: [['37388.json', 'i_1']]
+
+================================================================================
+QID: 37105.jpeg-4
+Ground Truth Document ID: 37105
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37083      | Score: 0.44642 | Node: [['37083.json', 'i_1']]
+  Rank  2 | Doc ID: 36955      | Score: 0.32961 | Node: [['36955.json', 'i_1']]
+  Rank  3 | Doc ID: 37307      | Score: 0.32089 | Node: [['37307.json', 'i_1']]
+  Rank  4 | Doc ID: 37159      | Score: 0.31277 | Node: [['37159.json', 'i_1']]
+  Rank  5 | Doc ID: 37320      | Score: 0.31021 | Node: [['37320.json', 'i_1']]
+  Rank  6 | Doc ID: 37274      | Score: 0.30965 | Node: [['37274.json', 'i_1']]
+  Rank  7 | Doc ID: 37394      | Score: 0.30471 | Node: [['37394.json', 'i_1']]
+  Rank  8 | Doc ID: 36983      | Score: 0.30368 | Node: [['36983.json', 'i_1']]
+  Rank  9 | Doc ID: 36993      | Score: 0.30311 | Node: [['36993.json', 'i_1']]
+
+================================================================================
+QID: 37710.jpeg-1
+Ground Truth Document ID: 37710
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44465      | Score: 0.27017 | Node: [['44465.json', 'i_1']]
+  Rank  2 | Doc ID: 44683      | Score: 0.25417 | Node: [['44683.json', 'i_1']]
+  Rank  3 | Doc ID: 20018      | Score: 0.24925 | Node: [['20018.json', 'i_1']]
+  Rank  4 | Doc ID: 40605      | Score: 0.24703 | Node: [['40605.json', 'i_1']]
+  Rank  5 | Doc ID: 20313      | Score: 0.24288 | Node: [['20313.json', 'i_1']]
+  Rank  6 | Doc ID: 39594      | Score: 0.23291 | Node: [['39594.json', 'i_1']]
+  Rank  7 | Doc ID: 39640      | Score: 0.23283 | Node: [['39640.json', 'i_1']]
+  Rank  8 | Doc ID: 44728      | Score: 0.23228 | Node: [['44728.json', 'i_1']]
+  Rank  9 | Doc ID: 20294      | Score: 0.23120 | Node: [['20294.json', 'i_1']]
+
+================================================================================
+QID: 37710.jpeg-3
+Ground Truth Document ID: 37710
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44721      | Score: 0.30375 | Node: [['44721.json', 'i_1']]
+  Rank  2 | Doc ID: 44687      | Score: 0.29175 | Node: [['44687.json', 'i_1']]
+  Rank  3 | Doc ID: 44727      | Score: 0.28826 | Node: [['44727.json', 'i_1']]
+  Rank  4 | Doc ID: 44465      | Score: 0.27789 | Node: [['44465.json', 'i_1']]
+  Rank  5 | Doc ID: 44683      | Score: 0.25246 | Node: [['44683.json', 'i_1']]
+  Rank  6 | Doc ID: 40605      | Score: 0.24156 | Node: [['40605.json', 'i_1']]
+  Rank  7 | Doc ID: 40677      | Score: 0.23747 | Node: [['40677.json', 'i_1']]
+  Rank  8 | Doc ID: 40467      | Score: 0.23165 | Node: [['40467.json', 'i_1']]
+  Rank  9 | Doc ID: 39594      | Score: 0.23155 | Node: [['39594.json', 'i_1']]
+
+================================================================================
+QID: 37710.jpeg-4
+Ground Truth Document ID: 37710
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41966      | Score: 0.40996 | Node: [['41966.json', 'i_1']]
+  Rank  2 | Doc ID: 42077      | Score: 0.37228 | Node: [['42077.json', 'i_1']]
+  Rank  3 | Doc ID: 44727      | Score: 0.37038 | Node: [['44727.json', 'i_1']]
+  Rank  4 | Doc ID: 41787      | Score: 0.36860 | Node: [['41787.json', 'i_1']]
+  Rank  5 | Doc ID: 41785      | Score: 0.36174 | Node: [['41785.json', 'i_1']]
+  Rank  6 | Doc ID: 42012      | Score: 0.36055 | Node: [['42012.json', 'i_1']]
+  Rank  7 | Doc ID: 41833      | Score: 0.35400 | Node: [['41833.json', 'i_1']]
+  Rank  8 | Doc ID: 42050      | Score: 0.34939 | Node: [['42050.json', 'i_1']]
+  Rank  9 | Doc ID: 42097      | Score: 0.33140 | Node: [['42097.json', 'i_1']]
+
+================================================================================
+QID: 37710.jpeg-5
+Ground Truth Document ID: 37710
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44727      | Score: 0.40805 | Node: [['44727.json', 'i_1']]
+  Rank  2 | Doc ID: 44721      | Score: 0.33714 | Node: [['44721.json', 'i_1']]
+  Rank  3 | Doc ID: 20018      | Score: 0.30838 | Node: [['20018.json', 'i_1']]
+  Rank  4 | Doc ID: 70059      | Score: 0.30453 | Node: [['70059.json', 'i_1']]
+  Rank  5 | Doc ID: 44683      | Score: 0.30006 | Node: [['44683.json', 'i_1']]
+  Rank  6 | Doc ID: 70344      | Score: 0.29980 | Node: [['70344.json', 'i_1']]
+  Rank  7 | Doc ID: 45134      | Score: 0.29878 | Node: [['45134.json', 'i_1']]
+  Rank  8 | Doc ID: 44642      | Score: 0.28715 | Node: [['44642.json', 'i_1']]
+  Rank  9 | Doc ID: 20241      | Score: 0.28707 | Node: [['20241.json', 'i_1']]
+
+================================================================================
+QID: 37710.jpeg-9
+Ground Truth Document ID: 37710
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 32369      | Score: 0.29064 | Node: [['32369.json', 'i_1']]
+  Rank  2 | Doc ID: 44371      | Score: 0.28997 | Node: [['44371.json', 'i_1']]
+  Rank  3 | Doc ID: 41727      | Score: 0.27753 | Node: [['41727.json', 'i_1']]
+  Rank  4 | Doc ID: 44672      | Score: 0.27571 | Node: [['44672.json', 'i_1']]
+  Rank  5 | Doc ID: 20241      | Score: 0.26366 | Node: [['20241.json', 'i_1']]
+  Rank  6 | Doc ID: 44728      | Score: 0.25991 | Node: [['44728.json', 'i_1']]
+  Rank  7 | Doc ID: 44465      | Score: 0.25893 | Node: [['44465.json', 'i_1']]
+  Rank  8 | Doc ID: 44642      | Score: 0.25891 | Node: [['44642.json', 'i_1']]
+  Rank  9 | Doc ID: 44683      | Score: 0.25562 | Node: [['44683.json', 'i_1']]
+
+================================================================================
+QID: 40649.jpeg-10
+Ground Truth Document ID: 40649
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37036      | Score: 0.59284 | Node: [['37036.json', 'i_1']]
+  Rank  2 | Doc ID: 20313      | Score: 0.57237 | Node: [['20313.json', 'i_1']]
+  Rank  3 | Doc ID: 37400      | Score: 0.53314 | Node: [['37400.json', 'i_1']]
+  Rank  4 | Doc ID: 44771      | Score: 0.52954 | Node: [['44771.json', 'i_1']]
+  Rank  5 | Doc ID: 37197      | Score: 0.51041 | Node: [['37197.json', 'i_1']]
+  Rank  6 | Doc ID: 37321      | Score: 0.50199 | Node: [['37321.json', 'i_1']]
+  Rank  7 | Doc ID: 36948      | Score: 0.47664 | Node: [['36948.json', 'i_1']]
+  Rank  8 | Doc ID: 37040      | Score: 0.47100 | Node: [['37040.json', 'i_1']]
+  Rank  9 | Doc ID: 37150      | Score: 0.45853 | Node: [['37150.json', 'i_1']]
+
+================================================================================
+QID: 37394.jpeg-5
+Ground Truth Document ID: 37394
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36966      | Score: 0.37959 | Node: [['36966.json', 'i_1']]
+  Rank  2 | Doc ID: 20153      | Score: 0.25577 | Node: [['20153.json', 'i_1']]
+  Rank  3 | Doc ID: 37307      | Score: 0.22311 | Node: [['37307.json', 'i_1']]
+  Rank  4 | Doc ID: 45050      | Score: 0.21919 | Node: [['45050.json', 'i_1']]
+  Rank  5 | Doc ID: 36995      | Score: 0.21439 | Node: [['36995.json', 'i_1']]
+  Rank  6 | Doc ID: 20052      | Score: 0.20589 | Node: [['20052.json', 'i_1']]
+  Rank  7 | Doc ID: 37190      | Score: 0.19560 | Node: [['37190.json', 'i_1']]
+  Rank  8 | Doc ID: 37029      | Score: 0.19134 | Node: [['37029.json', 'i_1']]
+  Rank  9 | Doc ID: 44579      | Score: 0.19054 | Node: [['44579.json', 'i_1']]
+
+================================================================================
+QID: 37394.jpeg-6
+Ground Truth Document ID: 37394
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36966      | Score: 0.38389 | Node: [['36966.json', 'i_1']]
+  Rank  2 | Doc ID: 20153      | Score: 0.29866 | Node: [['20153.json', 'i_1']]
+  Rank  3 | Doc ID: 36995      | Score: 0.29730 | Node: [['36995.json', 'i_1']]
+  Rank  4 | Doc ID: 37036      | Score: 0.28778 | Node: [['37036.json', 'i_1']]
+  Rank  5 | Doc ID: 20313      | Score: 0.28293 | Node: [['20313.json', 'i_1']]
+  Rank  6 | Doc ID: 37400      | Score: 0.27632 | Node: [['37400.json', 'i_1']]
+  Rank  7 | Doc ID: 37054      | Score: 0.26992 | Node: [['37054.json', 'i_1']]
+  Rank  8 | Doc ID: 37363      | Score: 0.26608 | Node: [['37363.json', 'i_1']]
+  Rank  9 | Doc ID: 37307      | Score: 0.26606 | Node: [['37307.json', 'i_1']]
+
+================================================================================
+QID: 37394.jpeg-7
+Ground Truth Document ID: 37394
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37033      | Score: 0.43252 | Node: [['37033.json', 'i_1']]
+  Rank  2 | Doc ID: 37057      | Score: 0.41680 | Node: [['37057.json', 'i_1']]
+  Rank  3 | Doc ID: 37395      | Score: 0.41102 | Node: [['37395.json', 'i_1']]
+  Rank  4 | Doc ID: 20313      | Score: 0.39364 | Node: [['20313.json', 'i_1']]
+  Rank  5 | Doc ID: 37190      | Score: 0.39193 | Node: [['37190.json', 'i_1']]
+  Rank  6 | Doc ID: 37308      | Score: 0.38950 | Node: [['37308.json', 'i_1']]
+  Rank  7 | Doc ID: 37029      | Score: 0.38509 | Node: [['37029.json', 'i_1']]
+  Rank  8 | Doc ID: 37197      | Score: 0.38431 | Node: [['37197.json', 'i_1']]
+  Rank  9 | Doc ID: 36966      | Score: 0.38397 | Node: [['36966.json', 'i_1']]
+
+================================================================================
+QID: 37394.jpeg-9
+Ground Truth Document ID: 37394
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37308      | Score: 0.48204 | Node: [['37308.json', 'i_1']]
+  Rank  2 | Doc ID: 37372      | Score: 0.45100 | Node: [['37372.json', 'i_1']]
+  Rank  3 | Doc ID: 37138      | Score: 0.38212 | Node: [['37138.json', 'i_1']]
+  Rank  4 | Doc ID: 37318      | Score: 0.37776 | Node: [['37318.json', 'i_1']]
+  Rank  5 | Doc ID: 36988      | Score: 0.37462 | Node: [['36988.json', 'i_1']]
+  Rank  6 | Doc ID: 37033      | Score: 0.36914 | Node: [['37033.json', 'i_1']]
+  Rank  7 | Doc ID: 37083      | Score: 0.36284 | Node: [['37083.json', 'i_1']]
+  Rank  8 | Doc ID: 37366      | Score: 0.35464 | Node: [['37366.json', 'i_1']]
+  Rank  9 | Doc ID: 36995      | Score: 0.34831 | Node: [['36995.json', 'i_1']]
+
+================================================================================
+QID: 37394.jpeg-11
+Ground Truth Document ID: 37394
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36995      | Score: 0.45811 | Node: [['36995.json', 'i_1']]
+  Rank  2 | Doc ID: 37308      | Score: 0.40877 | Node: [['37308.json', 'i_1']]
+  Rank  3 | Doc ID: 37057      | Score: 0.39890 | Node: [['37057.json', 'i_1']]
+  Rank  4 | Doc ID: 37083      | Score: 0.39606 | Node: [['37083.json', 'i_1']]
+  Rank  5 | Doc ID: 44672      | Score: 0.38617 | Node: [['44672.json', 'i_1']]
+  Rank  6 | Doc ID: 37321      | Score: 0.37806 | Node: [['37321.json', 'i_1']]
+  Rank  7 | Doc ID: 37372      | Score: 0.36803 | Node: [['37372.json', 'i_1']]
+  Rank  8 | Doc ID: 37033      | Score: 0.36506 | Node: [['37033.json', 'i_1']]
+  Rank  9 | Doc ID: 36966      | Score: 0.34607 | Node: [['36966.json', 'i_1']]
+
+================================================================================
+QID: 37394.jpeg-12
+Ground Truth Document ID: 37394
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37190      | Score: 1.01492 | Node: [['37190.json', 'i_1']]
+  Rank  2 | Doc ID: 36948      | Score: 0.94380 | Node: [['36948.json', 'i_1']]
+  Rank  3 | Doc ID: 37159      | Score: 0.91552 | Node: [['37159.json', 'i_1']]
+  Rank  4 | Doc ID: 37083      | Score: 0.88643 | Node: [['37083.json', 'i_1']]
+  Rank  5 | Doc ID: 37165      | Score: 0.87929 | Node: [['37165.json', 'i_1']]
+  Rank  6 | Doc ID: 36966      | Score: 0.85355 | Node: [['36966.json', 'i_1']]
+  Rank  7 | Doc ID: 37197      | Score: 0.85152 | Node: [['37197.json', 'i_1']]
+  Rank  8 | Doc ID: 37320      | Score: 0.83980 | Node: [['37320.json', 'i_1']]
+  Rank  9 | Doc ID: 37054      | Score: 0.79965 | Node: [['37054.json', 'i_1']]
+
+================================================================================
+QID: 39814.jpeg-2
+Ground Truth Document ID: 39814
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39458      | Score: 0.38742 | Node: [['39458.json', 'i_1']]
+  Rank  2 | Doc ID: 39680      | Score: 0.37061 | Node: [['39680.json', 'i_1']]
+  Rank  3 | Doc ID: 39483      | Score: 0.31029 | Node: [['39483.json', 'i_1']]
+  Rank  4 | Doc ID: 39693      | Score: 0.29232 | Node: [['39693.json', 'i_1']]
+  Rank  5 | Doc ID: 39310      | Score: 0.28644 | Node: [['39310.json', 'i_1']]
+  Rank  6 | Doc ID: 30076      | Score: 0.27932 | Node: [['30076.json', 'i_1']]
+  Rank  7 | Doc ID: 20095      | Score: 0.24872 | Node: [['20095.json', 'i_1']]
+  Rank  8 | Doc ID: 70572      | Score: 0.24404 | Node: [['70572.json', 'i_1']]
+  Rank  9 | Doc ID: 70021      | Score: 0.24021 | Node: [['70021.json', 'i_1']]
+
+================================================================================
+QID: 39814.jpeg-4
+Ground Truth Document ID: 39814
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39680      | Score: 0.39868 | Node: [['39680.json', 'i_1']]
+  Rank  2 | Doc ID: 39458      | Score: 0.38552 | Node: [['39458.json', 'i_1']]
+  Rank  3 | Doc ID: 39693      | Score: 0.28871 | Node: [['39693.json', 'i_1']]
+  Rank  4 | Doc ID: 39483      | Score: 0.28858 | Node: [['39483.json', 'i_1']]
+  Rank  5 | Doc ID: 30076      | Score: 0.27328 | Node: [['30076.json', 'i_1']]
+  Rank  6 | Doc ID: 39310      | Score: 0.27033 | Node: [['39310.json', 'i_1']]
+  Rank  7 | Doc ID: 70572      | Score: 0.24851 | Node: [['70572.json', 'i_1']]
+  Rank  8 | Doc ID: 20095      | Score: 0.23756 | Node: [['20095.json', 'i_1']]
+  Rank  9 | Doc ID: 39468      | Score: 0.22994 | Node: [['39468.json', 'i_1']]
+
+================================================================================
+QID: 39792.jpeg-1
+Ground Truth Document ID: 39792
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41650      | Score: 0.33961 | Node: [['41650.json', 'i_1']]
+  Rank  2 | Doc ID: 43168      | Score: 0.32345 | Node: [['43168.json', 'i_1']]
+  Rank  3 | Doc ID: 39978      | Score: 0.27485 | Node: [['39978.json', 'i_1']]
+  Rank  4 | Doc ID: 35380      | Score: 0.27213 | Node: [['35380.json', 'i_1']]
+  Rank  5 | Doc ID: 39766      | Score: 0.26301 | Node: [['39766.json', 'i_1']]
+  Rank  6 | Doc ID: 40064      | Score: 0.25165 | Node: [['40064.json', 'i_1']]
+  Rank  7 | Doc ID: 10304      | Score: 0.24118 | Node: [['10304.json', 'i_1']]
+  Rank  8 | Doc ID: 10488      | Score: 0.23944 | Node: [['10488.json', 'i_1']]
+  Rank  9 | Doc ID: 36966      | Score: 0.23859 | Node: [['36966.json', 'i_1']]
+
+================================================================================
+QID: 39634.jpeg-2
+Ground Truth Document ID: 39634
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39303      | Score: 0.48821 | Node: [['39303.json', 'i_1']]
+  Rank  2 | Doc ID: 39594      | Score: 0.45069 | Node: [['39594.json', 'i_1']]
+  Rank  3 | Doc ID: 40467      | Score: 0.43349 | Node: [['40467.json', 'i_1']]
+  Rank  4 | Doc ID: 39640      | Score: 0.41816 | Node: [['39640.json', 'i_1']]
+  Rank  5 | Doc ID: 39695      | Score: 0.41051 | Node: [['39695.json', 'i_1']]
+  Rank  6 | Doc ID: 39619      | Score: 0.39179 | Node: [['39619.json', 'i_1']]
+  Rank  7 | Doc ID: 39472      | Score: 0.38438 | Node: [['39472.json', 'i_1']]
+  Rank  8 | Doc ID: 39629      | Score: 0.35519 | Node: [['39629.json', 'i_1']]
+  Rank  9 | Doc ID: 39310      | Score: 0.34255 | Node: [['39310.json', 'i_1']]
+
+================================================================================
+QID: 39352.jpeg-3
+Ground Truth Document ID: 39352
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39619      | Score: 0.38304 | Node: [['39619.json', 'i_1']]
+  Rank  2 | Doc ID: 36158      | Score: 0.37893 | Node: [['36158.json', 'i_1']]
+  Rank  3 | Doc ID: 39310      | Score: 0.36468 | Node: [['39310.json', 'i_1']]
+  Rank  4 | Doc ID: 70362      | Score: 0.35300 | Node: [['70362.json', 'i_1']]
+  Rank  5 | Doc ID: 39680      | Score: 0.35151 | Node: [['39680.json', 'i_1']]
+  Rank  6 | Doc ID: 10304      | Score: 0.33369 | Node: [['10304.json', 'i_1']]
+  Rank  7 | Doc ID: 39693      | Score: 0.32722 | Node: [['39693.json', 'i_1']]
+  Rank  8 | Doc ID: 39458      | Score: 0.32071 | Node: [['39458.json', 'i_1']]
+  Rank  9 | Doc ID: 39268      | Score: 0.32020 | Node: [['39268.json', 'i_1']]
+
+================================================================================
+QID: 30139.jpeg-4
+Ground Truth Document ID: 30139
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37197      | Score: 0.31735 | Node: [['37197.json', 'i_1']]
+  Rank  2 | Doc ID: 41575      | Score: 0.30600 | Node: [['41575.json', 'i_1']]
+  Rank  3 | Doc ID: 20105      | Score: 0.28349 | Node: [['20105.json', 'i_1']]
+  Rank  4 | Doc ID: 44840      | Score: 0.27441 | Node: [['44840.json', 'i_1']]
+  Rank  5 | Doc ID: 37040      | Score: 0.27297 | Node: [['37040.json', 'i_1']]
+  Rank  6 | Doc ID: 37001      | Score: 0.27012 | Node: [['37001.json', 'i_1']]
+  Rank  7 | Doc ID: 40677      | Score: 0.26590 | Node: [['40677.json', 'i_1']]
+  Rank  8 | Doc ID: 45017      | Score: 0.26438 | Node: [['45017.json', 'i_1']]
+  Rank  9 | Doc ID: 40927      | Score: 0.26108 | Node: [['40927.json', 'i_1']]
+
+================================================================================
+QID: 30139.jpeg-5
+Ground Truth Document ID: 30139
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37275      | Score: 0.29427 | Node: [['37275.json', 'i_1']]
+  Rank  2 | Doc ID: 37001      | Score: 0.29218 | Node: [['37001.json', 'i_1']]
+  Rank  3 | Doc ID: 37372      | Score: 0.27186 | Node: [['37372.json', 'i_1']]
+  Rank  4 | Doc ID: 37391      | Score: 0.26317 | Node: [['37391.json', 'i_1']]
+  Rank  5 | Doc ID: 20313      | Score: 0.25758 | Node: [['20313.json', 'i_1']]
+  Rank  6 | Doc ID: 37307      | Score: 0.25655 | Node: [['37307.json', 'i_1']]
+  Rank  7 | Doc ID: 44871      | Score: 0.25173 | Node: [['44871.json', 'i_1']]
+  Rank  8 | Doc ID: 37262      | Score: 0.25007 | Node: [['37262.json', 'i_1']]
+  Rank  9 | Doc ID: 37138      | Score: 0.24734 | Node: [['37138.json', 'i_1']]
+
+================================================================================
+QID: 39807.jpeg-7
+Ground Truth Document ID: 39807
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39766      | Score: 0.35385 | Node: [['39766.json', 'i_1']]
+  Rank  2 | Doc ID: 37040      | Score: 0.29077 | Node: [['37040.json', 'i_1']]
+  Rank  3 | Doc ID: 70024      | Score: 0.26844 | Node: [['70024.json', 'i_1']]
+  Rank  4 | Doc ID: 20067      | Score: 0.24831 | Node: [['20067.json', 'i_1']]
+  Rank  5 | Doc ID: 35147      | Score: 0.23836 | Node: [['35147.json', 'i_1']]
+  Rank  6 | Doc ID: 44579      | Score: 0.23522 | Node: [['44579.json', 'i_1']]
+  Rank  7 | Doc ID: 70200      | Score: 0.23242 | Node: [['70200.json', 'i_1']]
+  Rank  8 | Doc ID: 31595      | Score: 0.22688 | Node: [['31595.json', 'i_1']]
+  Rank  9 | Doc ID: 44536      | Score: 0.22513 | Node: [['44536.json', 'i_1']]
+
+================================================================================
+QID: 40023.jpeg-4
+Ground Truth Document ID: 40023
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39983      | Score: 0.18156 | Node: [['39983.json', 'i_1']]
+  Rank  2 | Doc ID: 40826      | Score: 0.15681 | Node: [['40826.json', 'i_1']]
+  Rank  3 | Doc ID: 32308      | Score: 0.15092 | Node: [['32308.json', 'i_1']]
+  Rank  4 | Doc ID: 43081      | Score: 0.14765 | Node: [['43081.json', 'i_1']]
+  Rank  5 | Doc ID: 36966      | Score: 0.14654 | Node: [['36966.json', 'i_1']]
+  Rank  6 | Doc ID: 41575      | Score: 0.14589 | Node: [['41575.json', 'i_1']]
+  Rank  7 | Doc ID: 44728      | Score: 0.14261 | Node: [['44728.json', 'i_1']]
+  Rank  8 | Doc ID: 37103      | Score: 0.14234 | Node: [['37103.json', 'i_1']]
+  Rank  9 | Doc ID: 35294      | Score: 0.14033 | Node: [['35294.json', 'i_1']]
+
+================================================================================
+QID: 40023.jpeg-16
+Ground Truth Document ID: 40023
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 34642      | Score: 0.16064 | Node: [['34642.json', 'i_1']]
+  Rank  2 | Doc ID: 37159      | Score: 0.15983 | Node: [['37159.json', 'i_1']]
+  Rank  3 | Doc ID: 10184      | Score: 0.15525 | Node: [['10184.json', 'i_1']]
+  Rank  4 | Doc ID: 20294      | Score: 0.15469 | Node: [['20294.json', 'i_1']]
+  Rank  5 | Doc ID: 20018      | Score: 0.15319 | Node: [['20018.json', 'i_1']]
+  Rank  6 | Doc ID: 32308      | Score: 0.14621 | Node: [['32308.json', 'i_1']]
+  Rank  7 | Doc ID: 37262      | Score: 0.14583 | Node: [['37262.json', 'i_1']]
+  Rank  8 | Doc ID: 35294      | Score: 0.14236 | Node: [['35294.json', 'i_1']]
+  Rank  9 | Doc ID: 70200      | Score: 0.13953 | Node: [['70200.json', 'i_1']]
+
+================================================================================
+QID: 40023.jpeg-19
+Ground Truth Document ID: 40023
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39978      | Score: 0.41746 | Node: [['39978.json', 'i_1']]
+  Rank  2 | Doc ID: 39458      | Score: 0.39299 | Node: [['39458.json', 'i_1']]
+  Rank  3 | Doc ID: 40064      | Score: 0.38719 | Node: [['40064.json', 'i_1']]
+  Rank  4 | Doc ID: 32308      | Score: 0.38526 | Node: [['32308.json', 'i_1']]
+  Rank  5 | Doc ID: 39837      | Score: 0.38377 | Node: [['39837.json', 'i_1']]
+  Rank  6 | Doc ID: 39983      | Score: 0.38058 | Node: [['39983.json', 'i_1']]
+  Rank  7 | Doc ID: 39766      | Score: 0.36973 | Node: [['39766.json', 'i_1']]
+  Rank  8 | Doc ID: 37040      | Score: 0.36942 | Node: [['37040.json', 'i_1']]
+  Rank  9 | Doc ID: 39834      | Score: 0.35926 | Node: [['39834.json', 'i_1']]
+
+================================================================================
+QID: 40023.jpeg-20
+Ground Truth Document ID: 40023
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 32308      | Score: 0.37277 | Node: [['32308.json', 'i_1']]
+  Rank  2 | Doc ID: 41650      | Score: 0.30829 | Node: [['41650.json', 'i_1']]
+  Rank  3 | Doc ID: 11089      | Score: 0.29740 | Node: [['11089.json', 'i_1']]
+  Rank  4 | Doc ID: 36966      | Score: 0.29471 | Node: [['36966.json', 'i_1']]
+  Rank  5 | Doc ID: 39837      | Score: 0.29120 | Node: [['39837.json', 'i_1']]
+  Rank  6 | Doc ID: 39983      | Score: 0.28627 | Node: [['39983.json', 'i_1']]
+  Rank  7 | Doc ID: 20186      | Score: 0.27196 | Node: [['20186.json', 'i_1']]
+  Rank  8 | Doc ID: 37051      | Score: 0.25315 | Node: [['37051.json', 'i_1']]
+  Rank  9 | Doc ID: 20290      | Score: 0.25073 | Node: [['20290.json', 'i_1']]
+
+================================================================================
+QID: 40023.jpeg-24
+Ground Truth Document ID: 40023
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41650      | Score: 0.28848 | Node: [['41650.json', 'i_1']]
+  Rank  2 | Doc ID: 37100      | Score: 0.21835 | Node: [['37100.json', 'i_1']]
+  Rank  3 | Doc ID: 37197      | Score: 0.21170 | Node: [['37197.json', 'i_1']]
+  Rank  4 | Doc ID: 32308      | Score: 0.20375 | Node: [['32308.json', 'i_1']]
+  Rank  5 | Doc ID: 45045      | Score: 0.20227 | Node: [['45045.json', 'i_1']]
+  Rank  6 | Doc ID: 44536      | Score: 0.19306 | Node: [['44536.json', 'i_1']]
+  Rank  7 | Doc ID: 44771      | Score: 0.18833 | Node: [['44771.json', 'i_1']]
+  Rank  8 | Doc ID: 45032      | Score: 0.17306 | Node: [['45032.json', 'i_1']]
+  Rank  9 | Doc ID: 35294      | Score: 0.17216 | Node: [['35294.json', 'i_1']]
+
+================================================================================
+QID: 10087.jpeg-3
+Ground Truth Document ID: 10087
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20313      | Score: 1.10286 | Node: [['20313.json', 'i_1']]
+  Rank  2 | Doc ID: 37366      | Score: 1.01020 | Node: [['37366.json', 'i_1']]
+  Rank  3 | Doc ID: 37115      | Score: 0.99053 | Node: [['37115.json', 'i_1']]
+  Rank  4 | Doc ID: 39593      | Score: 0.93168 | Node: [['39593.json', 'i_1']]
+  Rank  5 | Doc ID: 44871      | Score: 0.92362 | Node: [['44871.json', 'i_1']]
+  Rank  6 | Doc ID: 10796      | Score: 0.92200 | Node: [['10796.json', 'i_1']]
+  Rank  7 | Doc ID: 37138      | Score: 0.91647 | Node: [['37138.json', 'i_1']]
+  Rank  8 | Doc ID: 20233      | Score: 0.90477 | Node: [['20233.json', 'i_1']]
+  Rank  9 | Doc ID: 37001      | Score: 0.89787 | Node: [['37001.json', 'i_1']]
+
+================================================================================
+QID: 31257.jpeg-7
+Ground Truth Document ID: 31257
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 40434      | Score: 0.30669 | Node: [['40434.json', 'i_1']]
+  Rank  2 | Doc ID: 44787      | Score: 0.27682 | Node: [['44787.json', 'i_1']]
+  Rank  3 | Doc ID: 40605      | Score: 0.24605 | Node: [['40605.json', 'i_1']]
+  Rank  4 | Doc ID: 44768      | Score: 0.22396 | Node: [['44768.json', 'i_1']]
+  Rank  5 | Doc ID: 41212      | Score: 0.22332 | Node: [['41212.json', 'i_1']]
+  Rank  6 | Doc ID: 44972      | Score: 0.22252 | Node: [['44972.json', 'i_1']]
+  Rank  7 | Doc ID: 11204      | Score: 0.21965 | Node: [['11204.json', 'i_1']]
+  Rank  8 | Doc ID: 10586      | Score: 0.21706 | Node: [['10586.json', 'i_1']]
+  Rank  9 | Doc ID: 40467      | Score: 0.21687 | Node: [['40467.json', 'i_1']]
+
+================================================================================
+QID: 31257.jpeg-10
+Ground Truth Document ID: 31257
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 40406      | Score: 0.49812 | Node: [['40406.json', 'i_1']]
+  Rank  2 | Doc ID: 44787      | Score: 0.49327 | Node: [['44787.json', 'i_1']]
+  Rank  3 | Doc ID: 34510      | Score: 0.47533 | Node: [['34510.json', 'i_1']]
+  Rank  4 | Doc ID: 40965      | Score: 0.47396 | Node: [['40965.json', 'i_1']]
+  Rank  5 | Doc ID: 20042      | Score: 0.44470 | Node: [['20042.json', 'i_1']]
+  Rank  6 | Doc ID: 20313      | Score: 0.43231 | Node: [['20313.json', 'i_1']]
+  Rank  7 | Doc ID: 37320      | Score: 0.41129 | Node: [['37320.json', 'i_1']]
+  Rank  8 | Doc ID: 70386      | Score: 0.40734 | Node: [['70386.json', 'i_1']]
+  Rank  9 | Doc ID: 39845      | Score: 0.40531 | Node: [['39845.json', 'i_1']]
+
+================================================================================
+QID: 20354.jpeg-8
+Ground Truth Document ID: 20354
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37302      | Score: 0.44706 | Node: [['37302.json', 'i_1']]
+  Rank  2 | Doc ID: 36988      | Score: 0.40035 | Node: [['36988.json', 'i_1']]
+  Rank  3 | Doc ID: 37036      | Score: 0.39639 | Node: [['37036.json', 'i_1']]
+  Rank  4 | Doc ID: 20313      | Score: 0.38309 | Node: [['20313.json', 'i_1']]
+  Rank  5 | Doc ID: 37320      | Score: 0.38260 | Node: [['37320.json', 'i_1']]
+  Rank  6 | Doc ID: 37197      | Score: 0.38004 | Node: [['37197.json', 'i_1']]
+  Rank  7 | Doc ID: 37029      | Score: 0.37616 | Node: [['37029.json', 'i_1']]
+  Rank  8 | Doc ID: 37324      | Score: 0.37028 | Node: [['37324.json', 'i_1']]
+  Rank  9 | Doc ID: 44771      | Score: 0.36706 | Node: [['44771.json', 'i_1']]
+
+================================================================================
+QID: 20153.jpeg-1
+Ground Truth Document ID: 20153
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37083      | Score: 0.49755 | Node: [['37083.json', 'i_1']]
+  Rank  2 | Doc ID: 37372      | Score: 0.47680 | Node: [['37372.json', 'i_1']]
+  Rank  3 | Doc ID: 37388      | Score: 0.47648 | Node: [['37388.json', 'i_1']]
+  Rank  4 | Doc ID: 37054      | Score: 0.45024 | Node: [['37054.json', 'i_1']]
+  Rank  5 | Doc ID: 37115      | Score: 0.43419 | Node: [['37115.json', 'i_1']]
+  Rank  6 | Doc ID: 37036      | Score: 0.43199 | Node: [['37036.json', 'i_1']]
+  Rank  7 | Doc ID: 37395      | Score: 0.43166 | Node: [['37395.json', 'i_1']]
+  Rank  8 | Doc ID: 37033      | Score: 0.42660 | Node: [['37033.json', 'i_1']]
+  Rank  9 | Doc ID: 37197      | Score: 0.42278 | Node: [['37197.json', 'i_1']]
+
+================================================================================
+QID: 20249.jpeg-2
+Ground Truth Document ID: 20249
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20241      | Score: 0.41061 | Node: [['20241.json', 'i_1']]
+  Rank  2 | Doc ID: 36899      | Score: 0.38828 | Node: [['36899.json', 'i_1']]
+  Rank  3 | Doc ID: 37024      | Score: 0.38749 | Node: [['37024.json', 'i_1']]
+  Rank  4 | Doc ID: 44787      | Score: 0.33790 | Node: [['44787.json', 'i_1']]
+  Rank  5 | Doc ID: 37262      | Score: 0.32749 | Node: [['37262.json', 'i_1']]
+  Rank  6 | Doc ID: 37115      | Score: 0.31959 | Node: [['37115.json', 'i_1']]
+  Rank  7 | Doc ID: 37165      | Score: 0.31036 | Node: [['37165.json', 'i_1']]
+  Rank  8 | Doc ID: 20294      | Score: 0.30850 | Node: [['20294.json', 'i_1']]
+  Rank  9 | Doc ID: 37190      | Score: 0.29781 | Node: [['37190.json', 'i_1']]
+
+================================================================================
+QID: 20249.jpeg-5
+Ground Truth Document ID: 20249
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20313      | Score: 0.31249 | Node: [['20313.json', 'i_1']]
+  Rank  2 | Doc ID: 20241      | Score: 0.30599 | Node: [['20241.json', 'i_1']]
+  Rank  3 | Doc ID: 44787      | Score: 0.30394 | Node: [['44787.json', 'i_1']]
+  Rank  4 | Doc ID: 20233      | Score: 0.30187 | Node: [['20233.json', 'i_1']]
+  Rank  5 | Doc ID: 10935      | Score: 0.29334 | Node: [['10935.json', 'i_1']]
+  Rank  6 | Doc ID: 37314      | Score: 0.27856 | Node: [['37314.json', 'i_1']]
+  Rank  7 | Doc ID: 37212      | Score: 0.27808 | Node: [['37212.json', 'i_1']]
+  Rank  8 | Doc ID: 20354      | Score: 0.27499 | Node: [['20354.json', 'i_1']]
+  Rank  9 | Doc ID: 35778      | Score: 0.27374 | Node: [['35778.json', 'i_1']]
+
+================================================================================
+QID: 20249.jpeg-6
+Ground Truth Document ID: 20249
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20233      | Score: 0.29162 | Node: [['20233.json', 'i_1']]
+  Rank  2 | Doc ID: 20313      | Score: 0.29130 | Node: [['20313.json', 'i_1']]
+  Rank  3 | Doc ID: 42756      | Score: 0.27946 | Node: [['42756.json', 'i_1']]
+  Rank  4 | Doc ID: 37150      | Score: 0.27023 | Node: [['37150.json', 'i_1']]
+  Rank  5 | Doc ID: 37307      | Score: 0.26819 | Node: [['37307.json', 'i_1']]
+  Rank  6 | Doc ID: 20241      | Score: 0.25913 | Node: [['20241.json', 'i_1']]
+  Rank  7 | Doc ID: 37324      | Score: 0.25828 | Node: [['37324.json', 'i_1']]
+  Rank  8 | Doc ID: 37159      | Score: 0.25526 | Node: [['37159.json', 'i_1']]
+  Rank  9 | Doc ID: 35010      | Score: 0.25384 | Node: [['35010.json', 'i_1']]
+
+================================================================================
+QID: 20249.jpeg-7
+Ground Truth Document ID: 20249
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20233      | Score: 0.31537 | Node: [['20233.json', 'i_1']]
+  Rank  2 | Doc ID: 44787      | Score: 0.31182 | Node: [['44787.json', 'i_1']]
+  Rank  3 | Doc ID: 20354      | Score: 0.30473 | Node: [['20354.json', 'i_1']]
+  Rank  4 | Doc ID: 20313      | Score: 0.30225 | Node: [['20313.json', 'i_1']]
+  Rank  5 | Doc ID: 10935      | Score: 0.30014 | Node: [['10935.json', 'i_1']]
+  Rank  6 | Doc ID: 37212      | Score: 0.28783 | Node: [['37212.json', 'i_1']]
+  Rank  7 | Doc ID: 10796      | Score: 0.27581 | Node: [['10796.json', 'i_1']]
+  Rank  8 | Doc ID: 11204      | Score: 0.27397 | Node: [['11204.json', 'i_1']]
+  Rank  9 | Doc ID: 20241      | Score: 0.26905 | Node: [['20241.json', 'i_1']]
+
+================================================================================
+QID: 20132.jpeg-1
+Ground Truth Document ID: 20132
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39268      | Score: 0.29111 | Node: [['39268.json', 'i_1']]
+  Rank  2 | Doc ID: 10765      | Score: 0.27315 | Node: [['10765.json', 'i_1']]
+  Rank  3 | Doc ID: 39766      | Score: 0.27076 | Node: [['39766.json', 'i_1']]
+  Rank  4 | Doc ID: 70454      | Score: 0.27053 | Node: [['70454.json', 'i_1']]
+  Rank  5 | Doc ID: 70386      | Score: 0.26518 | Node: [['70386.json', 'i_1']]
+  Rank  6 | Doc ID: 10796      | Score: 0.25829 | Node: [['10796.json', 'i_1']]
+  Rank  7 | Doc ID: 20018      | Score: 0.25476 | Node: [['20018.json', 'i_1']]
+  Rank  8 | Doc ID: 10829      | Score: 0.25320 | Node: [['10829.json', 'i_1']]
+  Rank  9 | Doc ID: 36988      | Score: 0.24961 | Node: [['36988.json', 'i_1']]
+
+================================================================================
+QID: 20132.jpeg-2
+Ground Truth Document ID: 20132
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 70386      | Score: 0.28578 | Node: [['70386.json', 'i_1']]
+  Rank  2 | Doc ID: 40406      | Score: 0.25754 | Node: [['40406.json', 'i_1']]
+  Rank  3 | Doc ID: 39268      | Score: 0.23507 | Node: [['39268.json', 'i_1']]
+  Rank  4 | Doc ID: 35750      | Score: 0.23233 | Node: [['35750.json', 'i_1']]
+  Rank  5 | Doc ID: 20087      | Score: 0.22970 | Node: [['20087.json', 'i_1']]
+  Rank  6 | Doc ID: 20018      | Score: 0.22609 | Node: [['20018.json', 'i_1']]
+  Rank  7 | Doc ID: 10836      | Score: 0.22598 | Node: [['10836.json', 'i_1']]
+  Rank  8 | Doc ID: 36988      | Score: 0.22574 | Node: [['36988.json', 'i_1']]
+  Rank  9 | Doc ID: 41045      | Score: 0.22392 | Node: [['41045.json', 'i_1']]
+
+================================================================================
+QID: 20132.jpeg-4
+Ground Truth Document ID: 20132
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 40406      | Score: 0.32325 | Node: [['40406.json', 'i_1']]
+  Rank  2 | Doc ID: 39268      | Score: 0.31490 | Node: [['39268.json', 'i_1']]
+  Rank  3 | Doc ID: 10829      | Score: 0.31161 | Node: [['10829.json', 'i_1']]
+  Rank  4 | Doc ID: 10765      | Score: 0.29518 | Node: [['10765.json', 'i_1']]
+  Rank  5 | Doc ID: 70454      | Score: 0.28811 | Node: [['70454.json', 'i_1']]
+  Rank  6 | Doc ID: 10796      | Score: 0.27838 | Node: [['10796.json', 'i_1']]
+  Rank  7 | Doc ID: 20067      | Score: 0.25666 | Node: [['20067.json', 'i_1']]
+  Rank  8 | Doc ID: 39766      | Score: 0.25444 | Node: [['39766.json', 'i_1']]
+  Rank  9 | Doc ID: 10836      | Score: 0.24820 | Node: [['10836.json', 'i_1']]
+
+================================================================================
+QID: 20132.jpeg-5
+Ground Truth Document ID: 20132
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 39766      | Score: 0.56507 | Node: [['39766.json', 'i_1']]
+  Rank  2 | Doc ID: 39983      | Score: 0.37714 | Node: [['39983.json', 'i_1']]
+  Rank  3 | Doc ID: 39778      | Score: 0.36016 | Node: [['39778.json', 'i_1']]
+  Rank  4 | Doc ID: 70574      | Score: 0.35218 | Node: [['70574.json', 'i_1']]
+  Rank  5 | Doc ID: 70454      | Score: 0.35108 | Node: [['70454.json', 'i_1']]
+  Rank  6 | Doc ID: 39978      | Score: 0.34392 | Node: [['39978.json', 'i_1']]
+  Rank  7 | Doc ID: 10829      | Score: 0.33248 | Node: [['10829.json', 'i_1']]
+  Rank  8 | Doc ID: 10249      | Score: 0.32785 | Node: [['10249.json', 'i_1']]
+  Rank  9 | Doc ID: 10999      | Score: 0.32744 | Node: [['10999.json', 'i_1']]
+
+================================================================================
+QID: 20323.jpeg-1
+Ground Truth Document ID: 20323
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 32567      | Score: 1.00258 | Node: [['32567.json', 'i_1']]
+  Rank  2 | Doc ID: 30411      | Score: 0.80169 | Node: [['30411.json', 'i_1']]
+  Rank  3 | Doc ID: 20197      | Score: 0.75395 | Node: [['20197.json', 'i_1']]
+  Rank  4 | Doc ID: 20110      | Score: 0.74289 | Node: [['20110.json', 'i_1']]
+  Rank  5 | Doc ID: 32937      | Score: 0.72591 | Node: [['32937.json', 'i_1']]
+  Rank  6 | Doc ID: 44818      | Score: 0.66469 | Node: [['44818.json', 'i_1']]
+  Rank  7 | Doc ID: 40826      | Score: 0.64593 | Node: [['40826.json', 'i_1']]
+  Rank  8 | Doc ID: 35294      | Score: 0.59513 | Node: [['35294.json', 'i_1']]
+  Rank  9 | Doc ID: 30341      | Score: 0.59253 | Node: [['30341.json', 'i_1']]
+
+================================================================================
+QID: 20255.jpeg-2
+Ground Truth Document ID: 20255
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20294      | Score: 0.50719 | Node: [['20294.json', 'i_1']]
+  Rank  2 | Doc ID: 44768      | Score: 0.50094 | Node: [['44768.json', 'i_1']]
+  Rank  3 | Doc ID: 32567      | Score: 0.36656 | Node: [['32567.json', 'i_1']]
+  Rank  4 | Doc ID: 10030      | Score: 0.36325 | Node: [['10030.json', 'i_1']]
+  Rank  5 | Doc ID: 10488      | Score: 0.35419 | Node: [['10488.json', 'i_1']]
+  Rank  6 | Doc ID: 32937      | Score: 0.33775 | Node: [['32937.json', 'i_1']]
+  Rank  7 | Doc ID: 36948      | Score: 0.31865 | Node: [['36948.json', 'i_1']]
+  Rank  8 | Doc ID: 41650      | Score: 0.31672 | Node: [['41650.json', 'i_1']]
+  Rank  9 | Doc ID: 44683      | Score: 0.31555 | Node: [['44683.json', 'i_1']]
+
+================================================================================
+QID: 20093.jpeg-1
+Ground Truth Document ID: 20093
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20186      | Score: 0.54804 | Node: [['20186.json', 'i_1']]
+  Rank  2 | Doc ID: 44541      | Score: 0.53191 | Node: [['44541.json', 'i_1']]
+  Rank  3 | Doc ID: 36948      | Score: 0.51946 | Node: [['36948.json', 'i_1']]
+  Rank  4 | Doc ID: 44840      | Score: 0.51828 | Node: [['44840.json', 'i_1']]
+  Rank  5 | Doc ID: 20286      | Score: 0.51357 | Node: [['20286.json', 'i_1']]
+  Rank  6 | Doc ID: 43641      | Score: 0.50926 | Node: [['43641.json', 'i_1']]
+  Rank  7 | Doc ID: 41212      | Score: 0.50696 | Node: [['41212.json', 'i_1']]
+  Rank  8 | Doc ID: 33499      | Score: 0.49402 | Node: [['33499.json', 'i_1']]
+  Rank  9 | Doc ID: 20180      | Score: 0.49320 | Node: [['20180.json', 'i_1']]
+
+================================================================================
+QID: 20093.jpeg-2
+Ground Truth Document ID: 20093
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37324      | Score: 0.35021 | Node: [['37324.json', 'i_1']]
+  Rank  2 | Doc ID: 20388      | Score: 0.32570 | Node: [['20388.json', 'i_1']]
+  Rank  3 | Doc ID: 37321      | Score: 0.32554 | Node: [['37321.json', 'i_1']]
+  Rank  4 | Doc ID: 37054      | Score: 0.29660 | Node: [['37054.json', 'i_1']]
+  Rank  5 | Doc ID: 36995      | Score: 0.29286 | Node: [['36995.json', 'i_1']]
+  Rank  6 | Doc ID: 20313      | Score: 0.28927 | Node: [['20313.json', 'i_1']]
+  Rank  7 | Doc ID: 37197      | Score: 0.28496 | Node: [['37197.json', 'i_1']]
+  Rank  8 | Doc ID: 37262      | Score: 0.28479 | Node: [['37262.json', 'i_1']]
+  Rank  9 | Doc ID: 37103      | Score: 0.28053 | Node: [['37103.json', 'i_1']]
+
+================================================================================
+QID: 20018.jpeg-2
+Ground Truth Document ID: 20018
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44667      | Score: 0.58678 | Node: [['44667.json', 'i_1']]
+  Rank  2 | Doc ID: 44727      | Score: 0.57534 | Node: [['44727.json', 'i_1']]
+  Rank  3 | Doc ID: 44481      | Score: 0.56700 | Node: [['44481.json', 'i_1']]
+  Rank  4 | Doc ID: 44687      | Score: 0.56364 | Node: [['44687.json', 'i_1']]
+  Rank  5 | Doc ID: 44465      | Score: 0.56327 | Node: [['44465.json', 'i_1']]
+  Rank  6 | Doc ID: 44734      | Score: 0.54551 | Node: [['44734.json', 'i_1']]
+  Rank  7 | Doc ID: 44721      | Score: 0.53332 | Node: [['44721.json', 'i_1']]
+  Rank  8 | Doc ID: 45134      | Score: 0.52563 | Node: [['45134.json', 'i_1']]
+  Rank  9 | Doc ID: 44728      | Score: 0.52182 | Node: [['44728.json', 'i_1']]
+
+================================================================================
+QID: 20018.jpeg-3
+Ground Truth Document ID: 20018
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44465      | Score: 0.34022 | Node: [['44465.json', 'i_1']]
+  Rank  2 | Doc ID: 44667      | Score: 0.33068 | Node: [['44667.json', 'i_1']]
+  Rank  3 | Doc ID: 44721      | Score: 0.32987 | Node: [['44721.json', 'i_1']]
+  Rank  4 | Doc ID: 44605      | Score: 0.32081 | Node: [['44605.json', 'i_1']]
+  Rank  5 | Doc ID: 44727      | Score: 0.30827 | Node: [['44727.json', 'i_1']]
+  Rank  6 | Doc ID: 44371      | Score: 0.28096 | Node: [['44371.json', 'i_1']]
+  Rank  7 | Doc ID: 44734      | Score: 0.27686 | Node: [['44734.json', 'i_1']]
+  Rank  8 | Doc ID: 44687      | Score: 0.26691 | Node: [['44687.json', 'i_1']]
+  Rank  9 | Doc ID: 44728      | Score: 0.26597 | Node: [['44728.json', 'i_1']]
+
+================================================================================
+QID: 20018.jpeg-5
+Ground Truth Document ID: 20018
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44465      | Score: 0.33620 | Node: [['44465.json', 'i_1']]
+  Rank  2 | Doc ID: 44667      | Score: 0.33040 | Node: [['44667.json', 'i_1']]
+  Rank  3 | Doc ID: 44687      | Score: 0.31399 | Node: [['44687.json', 'i_1']]
+  Rank  4 | Doc ID: 44721      | Score: 0.28701 | Node: [['44721.json', 'i_1']]
+  Rank  5 | Doc ID: 44371      | Score: 0.27913 | Node: [['44371.json', 'i_1']]
+  Rank  6 | Doc ID: 44727      | Score: 0.27871 | Node: [['44727.json', 'i_1']]
+  Rank  7 | Doc ID: 44605      | Score: 0.27107 | Node: [['44605.json', 'i_1']]
+  Rank  8 | Doc ID: 37040      | Score: 0.25229 | Node: [['37040.json', 'i_1']]
+  Rank  9 | Doc ID: 44728      | Score: 0.25099 | Node: [['44728.json', 'i_1']]
+
+================================================================================
+QID: 20018.jpeg-6
+Ground Truth Document ID: 20018
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37400      | Score: 0.33980 | Node: [['37400.json', 'i_1']]
+  Rank  2 | Doc ID: 42694      | Score: 0.28215 | Node: [['42694.json', 'i_1']]
+  Rank  3 | Doc ID: 44605      | Score: 0.28147 | Node: [['44605.json', 'i_1']]
+  Rank  4 | Doc ID: 33159      | Score: 0.27118 | Node: [['33159.json', 'i_1']]
+  Rank  5 | Doc ID: 37138      | Score: 0.26014 | Node: [['37138.json', 'i_1']]
+  Rank  6 | Doc ID: 42097      | Score: 0.25632 | Node: [['42097.json', 'i_1']]
+  Rank  7 | Doc ID: 44787      | Score: 0.24378 | Node: [['44787.json', 'i_1']]
+  Rank  8 | Doc ID: 39845      | Score: 0.24153 | Node: [['39845.json', 'i_1']]
+  Rank  9 | Doc ID: 10765      | Score: 0.24122 | Node: [['10765.json', 'i_1']]
+
+================================================================================
+QID: 20051.jpeg-1
+Ground Truth Document ID: 20051
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41109      | Score: 0.31059 | Node: [['41109.json', 'i_1']]
+  Rank  2 | Doc ID: 41170      | Score: 0.29171 | Node: [['41170.json', 'i_1']]
+  Rank  3 | Doc ID: 35147      | Score: 0.27490 | Node: [['35147.json', 'i_1']]
+  Rank  4 | Doc ID: 40064      | Score: 0.26342 | Node: [['40064.json', 'i_1']]
+  Rank  5 | Doc ID: 70572      | Score: 0.25563 | Node: [['70572.json', 'i_1']]
+  Rank  6 | Doc ID: 70386      | Score: 0.24366 | Node: [['70386.json', 'i_1']]
+  Rank  7 | Doc ID: 70539      | Score: 0.22526 | Node: [['70539.json', 'i_1']]
+  Rank  8 | Doc ID: 39840      | Score: 0.22136 | Node: [['39840.json', 'i_1']]
+  Rank  9 | Doc ID: 20067      | Score: 0.20572 | Node: [['20067.json', 'i_1']]
+
+================================================================================
+QID: 20369.jpeg-1
+Ground Truth Document ID: 20369
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 35294      | Score: 0.24471 | Node: [['35294.json', 'i_1']]
+  Rank  2 | Doc ID: 44840      | Score: 0.22395 | Node: [['44840.json', 'i_1']]
+  Rank  3 | Doc ID: 20105      | Score: 0.21981 | Node: [['20105.json', 'i_1']]
+  Rank  4 | Doc ID: 32937      | Score: 0.21040 | Node: [['32937.json', 'i_1']]
+  Rank  5 | Doc ID: 33364      | Score: 0.20202 | Node: [['33364.json', 'i_1']]
+  Rank  6 | Doc ID: 20107      | Score: 0.19947 | Node: [['20107.json', 'i_1']]
+  Rank  7 | Doc ID: 35087      | Score: 0.19282 | Node: [['35087.json', 'i_1']]
+  Rank  8 | Doc ID: 37394      | Score: 0.18971 | Node: [['37394.json', 'i_1']]
+  Rank  9 | Doc ID: 36966      | Score: 0.18480 | Node: [['36966.json', 'i_1']]
+
+================================================================================
+QID: 20369.jpeg-2
+Ground Truth Document ID: 20369
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 35294      | Score: 0.52204 | Node: [['35294.json', 'i_1']]
+  Rank  2 | Doc ID: 20105      | Score: 0.51428 | Node: [['20105.json', 'i_1']]
+  Rank  3 | Doc ID: 41575      | Score: 0.49698 | Node: [['41575.json', 'i_1']]
+  Rank  4 | Doc ID: 44840      | Score: 0.49065 | Node: [['44840.json', 'i_1']]
+  Rank  5 | Doc ID: 45017      | Score: 0.46063 | Node: [['45017.json', 'i_1']]
+  Rank  6 | Doc ID: 33364      | Score: 0.45862 | Node: [['33364.json', 'i_1']]
+  Rank  7 | Doc ID: 37040      | Score: 0.44267 | Node: [['37040.json', 'i_1']]
+  Rank  8 | Doc ID: 20107      | Score: 0.44072 | Node: [['20107.json', 'i_1']]
+  Rank  9 | Doc ID: 35087      | Score: 0.41671 | Node: [['35087.json', 'i_1']]
+
+================================================================================
+QID: 10935.jpeg-1
+Ground Truth Document ID: 10935
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 70151      | Score: 0.38272 | Node: [['70151.json', 'i_1']]
+  Rank  2 | Doc ID: 10427      | Score: 0.35927 | Node: [['10427.json', 'i_1']]
+  Rank  3 | Doc ID: 70200      | Score: 0.34262 | Node: [['70200.json', 'i_1']]
+  Rank  4 | Doc ID: 11019      | Score: 0.34181 | Node: [['11019.json', 'i_1']]
+  Rank  5 | Doc ID: 10960      | Score: 0.34020 | Node: [['10960.json', 'i_1']]
+  Rank  6 | Doc ID: 10840      | Score: 0.33858 | Node: [['10840.json', 'i_1']]
+  Rank  7 | Doc ID: 10033      | Score: 0.33264 | Node: [['10033.json', 'i_1']]
+  Rank  8 | Doc ID: 70068      | Score: 0.33077 | Node: [['70068.json', 'i_1']]
+  Rank  9 | Doc ID: 11073      | Score: 0.33013 | Node: [['11073.json', 'i_1']]
+
+================================================================================
+QID: 10935.jpeg-2
+Ground Truth Document ID: 10935
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 70151      | Score: 0.38000 | Node: [['70151.json', 'i_1']]
+  Rank  2 | Doc ID: 10840      | Score: 0.34514 | Node: [['10840.json', 'i_1']]
+  Rank  3 | Doc ID: 41212      | Score: 0.34339 | Node: [['41212.json', 'i_1']]
+  Rank  4 | Doc ID: 10033      | Score: 0.34218 | Node: [['10033.json', 'i_1']]
+  Rank  5 | Doc ID: 10427      | Score: 0.34023 | Node: [['10427.json', 'i_1']]
+  Rank  6 | Doc ID: 70200      | Score: 0.33826 | Node: [['70200.json', 'i_1']]
+  Rank  7 | Doc ID: 11019      | Score: 0.33316 | Node: [['11019.json', 'i_1']]
+  Rank  8 | Doc ID: 70004      | Score: 0.32923 | Node: [['70004.json', 'i_1']]
+  Rank  9 | Doc ID: 11073      | Score: 0.32879 | Node: [['11073.json', 'i_1']]
+
+================================================================================
+QID: 10935.jpeg-3
+Ground Truth Document ID: 10935
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 70151      | Score: 0.33369 | Node: [['70151.json', 'i_1']]
+  Rank  2 | Doc ID: 41212      | Score: 0.32676 | Node: [['41212.json', 'i_1']]
+  Rank  3 | Doc ID: 10840      | Score: 0.32226 | Node: [['10840.json', 'i_1']]
+  Rank  4 | Doc ID: 10427      | Score: 0.31823 | Node: [['10427.json', 'i_1']]
+  Rank  5 | Doc ID: 11019      | Score: 0.29218 | Node: [['11019.json', 'i_1']]
+  Rank  6 | Doc ID: 70200      | Score: 0.28532 | Node: [['70200.json', 'i_1']]
+  Rank  7 | Doc ID: 70068      | Score: 0.28498 | Node: [['70068.json', 'i_1']]
+  Rank  8 | Doc ID: 11073      | Score: 0.28382 | Node: [['11073.json', 'i_1']]
+  Rank  9 | Doc ID: 10960      | Score: 0.28156 | Node: [['10960.json', 'i_1']]
+
+================================================================================
+QID: 20038.jpeg-2
+Ground Truth Document ID: 20038
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 41575      | Score: 0.15653 | Node: [['41575.json', 'i_1']]
+  Rank  2 | Doc ID: 37103      | Score: 0.14718 | Node: [['37103.json', 'i_1']]
+  Rank  3 | Doc ID: 10030      | Score: 0.13906 | Node: [['10030.json', 'i_1']]
+  Rank  4 | Doc ID: 44734      | Score: 0.13266 | Node: [['44734.json', 'i_1']]
+  Rank  5 | Doc ID: 32308      | Score: 0.12299 | Node: [['32308.json', 'i_1']]
+  Rank  6 | Doc ID: 43641      | Score: 0.11966 | Node: [['43641.json', 'i_1']]
+  Rank  7 | Doc ID: 40990      | Score: 0.11680 | Node: [['40990.json', 'i_1']]
+  Rank  8 | Doc ID: 36041      | Score: 0.11619 | Node: [['36041.json', 'i_1']]
+  Rank  9 | Doc ID: 44787      | Score: 0.10906 | Node: [['44787.json', 'i_1']]
+
+================================================================================
+QID: 35294.jpeg-5
+Ground Truth Document ID: 35294
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20232      | Score: 0.27027 | Node: [['20232.json', 'i_1']]
+  Rank  2 | Doc ID: 44371      | Score: 0.24684 | Node: [['44371.json', 'i_1']]
+  Rank  3 | Doc ID: 37190      | Score: 0.23611 | Node: [['37190.json', 'i_1']]
+  Rank  4 | Doc ID: 35380      | Score: 0.21385 | Node: [['35380.json', 'i_1']]
+  Rank  5 | Doc ID: 35337      | Score: 0.21207 | Node: [['35337.json', 'i_1']]
+  Rank  6 | Doc ID: 44687      | Score: 0.20729 | Node: [['44687.json', 'i_1']]
+  Rank  7 | Doc ID: 44481      | Score: 0.20617 | Node: [['44481.json', 'i_1']]
+  Rank  8 | Doc ID: 40406      | Score: 0.20072 | Node: [['40406.json', 'i_1']]
+  Rank  9 | Doc ID: 37320      | Score: 0.20063 | Node: [['37320.json', 'i_1']]
+
+================================================================================
+QID: 70405.jpeg-1
+Ground Truth Document ID: 70405
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 10796      | Score: 0.62982 | Node: [['10796.json', 'i_1']]
+  Rank  2 | Doc ID: 10829      | Score: 0.61464 | Node: [['10829.json', 'i_1']]
+  Rank  3 | Doc ID: 44787      | Score: 0.57710 | Node: [['44787.json', 'i_1']]
+  Rank  4 | Doc ID: 10102      | Score: 0.57337 | Node: [['10102.json', 'i_1']]
+  Rank  5 | Doc ID: 20325      | Score: 0.55061 | Node: [['20325.json', 'i_1']]
+  Rank  6 | Doc ID: 37314      | Score: 0.53513 | Node: [['37314.json', 'i_1']]
+  Rank  7 | Doc ID: 44785      | Score: 0.52807 | Node: [['44785.json', 'i_1']]
+  Rank  8 | Doc ID: 39983      | Score: 0.52637 | Node: [['39983.json', 'i_1']]
+  Rank  9 | Doc ID: 39522      | Score: 0.52378 | Node: [['39522.json', 'i_1']]
+
+================================================================================
+QID: 70405.jpeg-2
+Ground Truth Document ID: 70405
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44787      | Score: 0.35479 | Node: [['44787.json', 'i_1']]
+  Rank  2 | Doc ID: 10065      | Score: 0.34407 | Node: [['10065.json', 'i_1']]
+  Rank  3 | Doc ID: 10102      | Score: 0.34156 | Node: [['10102.json', 'i_1']]
+  Rank  4 | Doc ID: 20325      | Score: 0.31096 | Node: [['20325.json', 'i_1']]
+  Rank  5 | Doc ID: 10796      | Score: 0.31068 | Node: [['10796.json', 'i_1']]
+  Rank  6 | Doc ID: 39522      | Score: 0.30668 | Node: [['39522.json', 'i_1']]
+  Rank  7 | Doc ID: 10935      | Score: 0.30376 | Node: [['10935.json', 'i_1']]
+  Rank  8 | Doc ID: 70454      | Score: 0.30100 | Node: [['70454.json', 'i_1']]
+  Rank  9 | Doc ID: 37042      | Score: 0.29894 | Node: [['37042.json', 'i_1']]
+
+================================================================================
+QID: 70405.jpeg-3
+Ground Truth Document ID: 70405
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 10102      | Score: 0.34050 | Node: [['10102.json', 'i_1']]
+  Rank  2 | Doc ID: 44787      | Score: 0.33769 | Node: [['44787.json', 'i_1']]
+  Rank  3 | Doc ID: 10065      | Score: 0.32038 | Node: [['10065.json', 'i_1']]
+  Rank  4 | Doc ID: 39522      | Score: 0.30738 | Node: [['39522.json', 'i_1']]
+  Rank  5 | Doc ID: 20325      | Score: 0.30277 | Node: [['20325.json', 'i_1']]
+  Rank  6 | Doc ID: 10796      | Score: 0.30213 | Node: [['10796.json', 'i_1']]
+  Rank  7 | Doc ID: 39634      | Score: 0.30005 | Node: [['39634.json', 'i_1']]
+  Rank  8 | Doc ID: 37042      | Score: 0.28850 | Node: [['37042.json', 'i_1']]
+  Rank  9 | Doc ID: 70454      | Score: 0.28452 | Node: [['70454.json', 'i_1']]
+
+================================================================================
+QID: 70405.jpeg-4
+Ground Truth Document ID: 70405
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20325      | Score: 0.42123 | Node: [['20325.json', 'i_1']]
+  Rank  2 | Doc ID: 37274      | Score: 0.38414 | Node: [['37274.json', 'i_1']]
+  Rank  3 | Doc ID: 44787      | Score: 0.37695 | Node: [['44787.json', 'i_1']]
+  Rank  4 | Doc ID: 37095      | Score: 0.36496 | Node: [['37095.json', 'i_1']]
+  Rank  5 | Doc ID: 37104      | Score: 0.35453 | Node: [['37104.json', 'i_1']]
+  Rank  6 | Doc ID: 39754      | Score: 0.34900 | Node: [['39754.json', 'i_1']]
+  Rank  7 | Doc ID: 37057      | Score: 0.34650 | Node: [['37057.json', 'i_1']]
+  Rank  8 | Doc ID: 39522      | Score: 0.33594 | Node: [['39522.json', 'i_1']]
+  Rank  9 | Doc ID: 10935      | Score: 0.32722 | Node: [['10935.json', 'i_1']]
+
+================================================================================
+QID: 35230.jpeg-3
+Ground Truth Document ID: 35230
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 40828      | Score: 0.25067 | Node: [['40828.json', 'i_1']]
+  Rank  2 | Doc ID: 39978      | Score: 0.19183 | Node: [['39978.json', 'i_1']]
+  Rank  3 | Doc ID: 35010      | Score: 0.18171 | Node: [['35010.json', 'i_1']]
+  Rank  4 | Doc ID: 10245      | Score: 0.16557 | Node: [['10245.json', 'i_1']]
+  Rank  5 | Doc ID: 40846      | Score: 0.16153 | Node: [['40846.json', 'i_1']]
+  Rank  6 | Doc ID: 35294      | Score: 0.15708 | Node: [['35294.json', 'i_1']]
+  Rank  7 | Doc ID: 40921      | Score: 0.15549 | Node: [['40921.json', 'i_1']]
+  Rank  8 | Doc ID: 10022      | Score: 0.15542 | Node: [['10022.json', 'i_1']]
+  Rank  9 | Doc ID: 20226      | Score: 0.15347 | Node: [['20226.json', 'i_1']]
+
+================================================================================
+QID: 11410.jpeg-1
+Ground Truth Document ID: 11410
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 10765      | Score: 0.76529 | Node: [['10765.json', 'i_1']]
+  Rank  2 | Doc ID: 10130      | Score: 0.75504 | Node: [['10130.json', 'i_1']]
+  Rank  3 | Doc ID: 37302      | Score: 0.73997 | Node: [['37302.json', 'i_1']]
+  Rank  4 | Doc ID: 41575      | Score: 0.69750 | Node: [['41575.json', 'i_1']]
+  Rank  5 | Doc ID: 37366      | Score: 0.54026 | Node: [['37366.json', 'i_1']]
+  Rank  6 | Doc ID: 44988      | Score: 0.53475 | Node: [['44988.json', 'i_1']]
+  Rank  7 | Doc ID: 10282      | Score: 0.52400 | Node: [['10282.json', 'i_1']]
+  Rank  8 | Doc ID: 11228      | Score: 0.49319 | Node: [['11228.json', 'i_1']]
+  Rank  9 | Doc ID: 39754      | Score: 0.48651 | Node: [['39754.json', 'i_1']]
+
+================================================================================
+QID: 40958.jpeg-2
+Ground Truth Document ID: 40958
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 35010      | Score: 0.59950 | Node: [['35010.json', 'i_1']]
+  Rank  2 | Doc ID: 44727      | Score: 0.58230 | Node: [['44727.json', 'i_1']]
+  Rank  3 | Doc ID: 40828      | Score: 0.56500 | Node: [['40828.json', 'i_1']]
+  Rank  4 | Doc ID: 39801      | Score: 0.54479 | Node: [['39801.json', 'i_1']]
+  Rank  5 | Doc ID: 35147      | Score: 0.53778 | Node: [['35147.json', 'i_1']]
+  Rank  6 | Doc ID: 32369      | Score: 0.53290 | Node: [['32369.json', 'i_1']]
+  Rank  7 | Doc ID: 41045      | Score: 0.53252 | Node: [['41045.json', 'i_1']]
+  Rank  8 | Doc ID: 40786      | Score: 0.51328 | Node: [['40786.json', 'i_1']]
+  Rank  9 | Doc ID: 37262      | Score: 0.51018 | Node: [['37262.json', 'i_1']]
+
+================================================================================
+QID: 40958.jpeg-5
+Ground Truth Document ID: 40958
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 40828      | Score: 0.28457 | Node: [['40828.json', 'i_1']]
+  Rank  2 | Doc ID: 35010      | Score: 0.27183 | Node: [['35010.json', 'i_1']]
+  Rank  3 | Doc ID: 40990      | Score: 0.24726 | Node: [['40990.json', 'i_1']]
+  Rank  4 | Doc ID: 41008      | Score: 0.21725 | Node: [['41008.json', 'i_1']]
+  Rank  5 | Doc ID: 20067      | Score: 0.21530 | Node: [['20067.json', 'i_1']]
+  Rank  6 | Doc ID: 39839      | Score: 0.20848 | Node: [['39839.json', 'i_1']]
+  Rank  7 | Doc ID: 32369      | Score: 0.19939 | Node: [['32369.json', 'i_1']]
+  Rank  8 | Doc ID: 35147      | Score: 0.18833 | Node: [['35147.json', 'i_1']]
+  Rank  9 | Doc ID: 36961      | Score: 0.18177 | Node: [['36961.json', 'i_1']]
+
+================================================================================
+QID: 44472.jpeg-5
+Ground Truth Document ID: 44472
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44667      | Score: 0.30297 | Node: [['44667.json', 'i_1']]
+  Rank  2 | Doc ID: 20052      | Score: 0.28197 | Node: [['20052.json', 'i_1']]
+  Rank  3 | Doc ID: 20067      | Score: 0.27778 | Node: [['20067.json', 'i_1']]
+  Rank  4 | Doc ID: 20271      | Score: 0.25617 | Node: [['20271.json', 'i_1']]
+  Rank  5 | Doc ID: 39978      | Score: 0.25160 | Node: [['39978.json', 'i_1']]
+  Rank  6 | Doc ID: 20018      | Score: 0.24053 | Node: [['20018.json', 'i_1']]
+  Rank  7 | Doc ID: 44728      | Score: 0.23148 | Node: [['44728.json', 'i_1']]
+  Rank  8 | Doc ID: 44465      | Score: 0.22468 | Node: [['44465.json', 'i_1']]
+  Rank  9 | Doc ID: 35294      | Score: 0.22081 | Node: [['35294.json', 'i_1']]
+
+================================================================================
+QID: 70024.jpeg-1
+Ground Truth Document ID: 70024
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 11089      | Score: 0.40283 | Node: [['11089.json', 'i_1']]
+  Rank  2 | Doc ID: 70151      | Score: 0.40250 | Node: [['70151.json', 'i_1']]
+  Rank  3 | Doc ID: 10427      | Score: 0.39109 | Node: [['10427.json', 'i_1']]
+  Rank  4 | Doc ID: 70004      | Score: 0.37898 | Node: [['70004.json', 'i_1']]
+  Rank  5 | Doc ID: 11073      | Score: 0.37591 | Node: [['11073.json', 'i_1']]
+  Rank  6 | Doc ID: 10960      | Score: 0.36821 | Node: [['10960.json', 'i_1']]
+  Rank  7 | Doc ID: 10840      | Score: 0.35993 | Node: [['10840.json', 'i_1']]
+  Rank  8 | Doc ID: 70574      | Score: 0.35711 | Node: [['70574.json', 'i_1']]
+  Rank  9 | Doc ID: 10541      | Score: 0.35006 | Node: [['10541.json', 'i_1']]
+
+================================================================================
+QID: 70010.jpeg-1
+Ground Truth Document ID: 70010
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 70035      | Score: 0.45228 | Node: [['70035.json', 'i_1']]
+  Rank  2 | Doc ID: 10960      | Score: 0.41699 | Node: [['10960.json', 'i_1']]
+  Rank  3 | Doc ID: 10541      | Score: 0.39183 | Node: [['10541.json', 'i_1']]
+  Rank  4 | Doc ID: 11019      | Score: 0.37800 | Node: [['11019.json', 'i_1']]
+  Rank  5 | Doc ID: 11073      | Score: 0.35864 | Node: [['11073.json', 'i_1']]
+  Rank  6 | Doc ID: 70200      | Score: 0.35525 | Node: [['70200.json', 'i_1']]
+  Rank  7 | Doc ID: 10087      | Score: 0.35115 | Node: [['10087.json', 'i_1']]
+  Rank  8 | Doc ID: 70068      | Score: 0.34310 | Node: [['70068.json', 'i_1']]
+  Rank  9 | Doc ID: 70151      | Score: 0.32958 | Node: [['70151.json', 'i_1']]
+
+================================================================================
+QID: 44551.jpeg-1
+Ground Truth Document ID: 44551
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44734      | Score: 0.43821 | Node: [['44734.json', 'i_1']]
+  Rank  2 | Doc ID: 44721      | Score: 0.42749 | Node: [['44721.json', 'i_1']]
+  Rank  3 | Doc ID: 20241      | Score: 0.42075 | Node: [['20241.json', 'i_1']]
+  Rank  4 | Doc ID: 44672      | Score: 0.39669 | Node: [['44672.json', 'i_1']]
+  Rank  5 | Doc ID: 44683      | Score: 0.38608 | Node: [['44683.json', 'i_1']]
+  Rank  6 | Doc ID: 44572      | Score: 0.37646 | Node: [['44572.json', 'i_1']]
+  Rank  7 | Doc ID: 44642      | Score: 0.36159 | Node: [['44642.json', 'i_1']]
+  Rank  8 | Doc ID: 44727      | Score: 0.36150 | Node: [['44727.json', 'i_1']]
+  Rank  9 | Doc ID: 44529      | Score: 0.35822 | Node: [['44529.json', 'i_1']]
+
+================================================================================
+QID: 44551.jpeg-2
+Ground Truth Document ID: 44551
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20241      | Score: 0.93650 | Node: [['20241.json', 'i_1']]
+  Rank  2 | Doc ID: 39593      | Score: 0.88851 | Node: [['39593.json', 'i_1']]
+  Rank  3 | Doc ID: 44579      | Score: 0.88484 | Node: [['44579.json', 'i_1']]
+  Rank  4 | Doc ID: 11204      | Score: 0.86196 | Node: [['11204.json', 'i_1']]
+  Rank  5 | Doc ID: 44536      | Score: 0.85732 | Node: [['44536.json', 'i_1']]
+  Rank  6 | Doc ID: 44734      | Score: 0.85078 | Node: [['44734.json', 'i_1']]
+  Rank  7 | Doc ID: 20267      | Score: 0.85048 | Node: [['20267.json', 'i_1']]
+  Rank  8 | Doc ID: 20354      | Score: 0.84671 | Node: [['20354.json', 'i_1']]
+  Rank  9 | Doc ID: 10796      | Score: 0.83190 | Node: [['10796.json', 'i_1']]
+
+================================================================================
+QID: 44551.jpeg-3
+Ground Truth Document ID: 44551
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44371      | Score: 0.42122 | Node: [['44371.json', 'i_1']]
+  Rank  2 | Doc ID: 44536      | Score: 0.37468 | Node: [['44536.json', 'i_1']]
+  Rank  3 | Doc ID: 44672      | Score: 0.35030 | Node: [['44672.json', 'i_1']]
+  Rank  4 | Doc ID: 37262      | Score: 0.34803 | Node: [['37262.json', 'i_1']]
+  Rank  5 | Doc ID: 44579      | Score: 0.33378 | Node: [['44579.json', 'i_1']]
+  Rank  6 | Doc ID: 20388      | Score: 0.32479 | Node: [['20388.json', 'i_1']]
+  Rank  7 | Doc ID: 20241      | Score: 0.32121 | Node: [['20241.json', 'i_1']]
+  Rank  8 | Doc ID: 42756      | Score: 0.31991 | Node: [['42756.json', 'i_1']]
+  Rank  9 | Doc ID: 20313      | Score: 0.31872 | Node: [['20313.json', 'i_1']]
+
+================================================================================
+QID: 44551.jpeg-4
+Ground Truth Document ID: 44551
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44579      | Score: 0.33555 | Node: [['44579.json', 'i_1']]
+  Rank  2 | Doc ID: 10935      | Score: 0.31235 | Node: [['10935.json', 'i_1']]
+  Rank  3 | Doc ID: 10796      | Score: 0.30931 | Node: [['10796.json', 'i_1']]
+  Rank  4 | Doc ID: 41212      | Score: 0.28694 | Node: [['41212.json', 'i_1']]
+  Rank  5 | Doc ID: 44787      | Score: 0.28406 | Node: [['44787.json', 'i_1']]
+  Rank  6 | Doc ID: 40425      | Score: 0.28377 | Node: [['40425.json', 'i_1']]
+  Rank  7 | Doc ID: 20354      | Score: 0.28332 | Node: [['20354.json', 'i_1']]
+  Rank  8 | Doc ID: 11204      | Score: 0.27551 | Node: [['11204.json', 'i_1']]
+  Rank  9 | Doc ID: 20267      | Score: 0.25867 | Node: [['20267.json', 'i_1']]
+
+================================================================================
+QID: 44551.jpeg-5
+Ground Truth Document ID: 44551
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44371      | Score: 0.36614 | Node: [['44371.json', 'i_1']]
+  Rank  2 | Doc ID: 44579      | Score: 0.30144 | Node: [['44579.json', 'i_1']]
+  Rank  3 | Doc ID: 37262      | Score: 0.29214 | Node: [['37262.json', 'i_1']]
+  Rank  4 | Doc ID: 10586      | Score: 0.29197 | Node: [['10586.json', 'i_1']]
+  Rank  5 | Doc ID: 44481      | Score: 0.29056 | Node: [['44481.json', 'i_1']]
+  Rank  6 | Doc ID: 42756      | Score: 0.28621 | Node: [['42756.json', 'i_1']]
+  Rank  7 | Doc ID: 44672      | Score: 0.28052 | Node: [['44672.json', 'i_1']]
+  Rank  8 | Doc ID: 44536      | Score: 0.27779 | Node: [['44536.json', 'i_1']]
+  Rank  9 | Doc ID: 32369      | Score: 0.27633 | Node: [['32369.json', 'i_1']]
+
+================================================================================
+QID: 44672.jpeg-3
+Ground Truth Document ID: 44672
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 35380      | Score: 0.41039 | Node: [['35380.json', 'i_1']]
+  Rank  2 | Doc ID: 20042      | Score: 0.36325 | Node: [['20042.json', 'i_1']]
+  Rank  3 | Doc ID: 39280      | Score: 0.34156 | Node: [['39280.json', 'i_1']]
+  Rank  4 | Doc ID: 44465      | Score: 0.33097 | Node: [['44465.json', 'i_1']]
+  Rank  5 | Doc ID: 20241      | Score: 0.32710 | Node: [['20241.json', 'i_1']]
+  Rank  6 | Doc ID: 33555      | Score: 0.31730 | Node: [['33555.json', 'i_1']]
+  Rank  7 | Doc ID: 44721      | Score: 0.29523 | Node: [['44721.json', 'i_1']]
+  Rank  8 | Doc ID: 41699      | Score: 0.29451 | Node: [['41699.json', 'i_1']]
+  Rank  9 | Doc ID: 39680      | Score: 0.29082 | Node: [['39680.json', 'i_1']]
+
+================================================================================
+QID: 44371.jpeg-8
+Ground Truth Document ID: 44371
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44840      | Score: 0.28631 | Node: [['44840.json', 'i_1']]
+  Rank  2 | Doc ID: 20085      | Score: 0.28578 | Node: [['20085.json', 'i_1']]
+  Rank  3 | Doc ID: 42012      | Score: 0.26539 | Node: [['42012.json', 'i_1']]
+  Rank  4 | Doc ID: 20332      | Score: 0.25844 | Node: [['20332.json', 'i_1']]
+  Rank  5 | Doc ID: 45419      | Score: 0.25437 | Node: [['45419.json', 'i_1']]
+  Rank  6 | Doc ID: 40828      | Score: 0.25001 | Node: [['40828.json', 'i_1']]
+  Rank  7 | Doc ID: 37138      | Score: 0.24641 | Node: [['37138.json', 'i_1']]
+  Rank  8 | Doc ID: 10488      | Score: 0.23608 | Node: [['10488.json', 'i_1']]
+  Rank  9 | Doc ID: 10765      | Score: 0.23526 | Node: [['10765.json', 'i_1']]
+
+================================================================================
+QID: 44604.jpeg-1
+Ground Truth Document ID: 44604
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44727      | Score: 0.29055 | Node: [['44727.json', 'i_1']]
+  Rank  2 | Doc ID: 44721      | Score: 0.23175 | Node: [['44721.json', 'i_1']]
+  Rank  3 | Doc ID: 45134      | Score: 0.22129 | Node: [['45134.json', 'i_1']]
+  Rank  4 | Doc ID: 44728      | Score: 0.21457 | Node: [['44728.json', 'i_1']]
+  Rank  5 | Doc ID: 44734      | Score: 0.20797 | Node: [['44734.json', 'i_1']]
+  Rank  6 | Doc ID: 44529      | Score: 0.20048 | Node: [['44529.json', 'i_1']]
+  Rank  7 | Doc ID: 44683      | Score: 0.19995 | Node: [['44683.json', 'i_1']]
+  Rank  8 | Doc ID: 32937      | Score: 0.18953 | Node: [['32937.json', 'i_1']]
+  Rank  9 | Doc ID: 20241      | Score: 0.18589 | Node: [['20241.json', 'i_1']]
+
+================================================================================
+QID: 44604.jpeg-2
+Ground Truth Document ID: 44604
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44672      | Score: 0.33541 | Node: [['44672.json', 'i_1']]
+  Rank  2 | Doc ID: 44687      | Score: 0.33394 | Node: [['44687.json', 'i_1']]
+  Rank  3 | Doc ID: 44727      | Score: 0.32026 | Node: [['44727.json', 'i_1']]
+  Rank  4 | Doc ID: 20018      | Score: 0.31212 | Node: [['20018.json', 'i_1']]
+  Rank  5 | Doc ID: 44721      | Score: 0.28892 | Node: [['44721.json', 'i_1']]
+  Rank  6 | Doc ID: 44642      | Score: 0.28251 | Node: [['44642.json', 'i_1']]
+  Rank  7 | Doc ID: 44683      | Score: 0.27981 | Node: [['44683.json', 'i_1']]
+  Rank  8 | Doc ID: 44605      | Score: 0.27565 | Node: [['44605.json', 'i_1']]
+  Rank  9 | Doc ID: 44674      | Score: 0.27395 | Node: [['44674.json', 'i_1']]
+
+================================================================================
+QID: 44604.jpeg-3
+Ground Truth Document ID: 44604
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44672      | Score: 0.33693 | Node: [['44672.json', 'i_1']]
+  Rank  2 | Doc ID: 44727      | Score: 0.31082 | Node: [['44727.json', 'i_1']]
+  Rank  3 | Doc ID: 44683      | Score: 0.28487 | Node: [['44683.json', 'i_1']]
+  Rank  4 | Doc ID: 44687      | Score: 0.28096 | Node: [['44687.json', 'i_1']]
+  Rank  5 | Doc ID: 44721      | Score: 0.27876 | Node: [['44721.json', 'i_1']]
+  Rank  6 | Doc ID: 44605      | Score: 0.25743 | Node: [['44605.json', 'i_1']]
+  Rank  7 | Doc ID: 45134      | Score: 0.25162 | Node: [['45134.json', 'i_1']]
+  Rank  8 | Doc ID: 44642      | Score: 0.21950 | Node: [['44642.json', 'i_1']]
+  Rank  9 | Doc ID: 44734      | Score: 0.21944 | Node: [['44734.json', 'i_1']]
+
+================================================================================
+QID: 44604.jpeg-4
+Ground Truth Document ID: 44604
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 44529      | Score: 0.35438 | Node: [['44529.json', 'i_1']]
+  Rank  2 | Doc ID: 44683      | Score: 0.31845 | Node: [['44683.json', 'i_1']]
+  Rank  3 | Doc ID: 44727      | Score: 0.31487 | Node: [['44727.json', 'i_1']]
+  Rank  4 | Doc ID: 20018      | Score: 0.30531 | Node: [['20018.json', 'i_1']]
+  Rank  5 | Doc ID: 44721      | Score: 0.29032 | Node: [['44721.json', 'i_1']]
+  Rank  6 | Doc ID: 44672      | Score: 0.28870 | Node: [['44672.json', 'i_1']]
+  Rank  7 | Doc ID: 44728      | Score: 0.28360 | Node: [['44728.json', 'i_1']]
+  Rank  8 | Doc ID: 44734      | Score: 0.27577 | Node: [['44734.json', 'i_1']]
+  Rank  9 | Doc ID: 44465      | Score: 0.27173 | Node: [['44465.json', 'i_1']]
+
+================================================================================
+QID: 37100.jpeg-2
+Ground Truth Document ID: 37100
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37036      | Score: 0.62901 | Node: [['37036.json', 'i_1']]
+  Rank  2 | Doc ID: 20313      | Score: 0.58544 | Node: [['20313.json', 'i_1']]
+  Rank  3 | Doc ID: 37400      | Score: 0.56224 | Node: [['37400.json', 'i_1']]
+  Rank  4 | Doc ID: 44771      | Score: 0.55595 | Node: [['44771.json', 'i_1']]
+  Rank  5 | Doc ID: 37197      | Score: 0.54365 | Node: [['37197.json', 'i_1']]
+  Rank  6 | Doc ID: 37321      | Score: 0.54177 | Node: [['37321.json', 'i_1']]
+  Rank  7 | Doc ID: 36948      | Score: 0.49141 | Node: [['36948.json', 'i_1']]
+  Rank  8 | Doc ID: 37040      | Score: 0.47681 | Node: [['37040.json', 'i_1']]
+  Rank  9 | Doc ID: 37083      | Score: 0.46851 | Node: [['37083.json', 'i_1']]
+
+================================================================================
+QID: 36989.jpeg-4
+Ground Truth Document ID: 36989
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37257      | Score: 0.42701 | Node: [['37257.json', 'i_1']]
+  Rank  2 | Doc ID: 37190      | Score: 0.41086 | Node: [['37190.json', 'i_1']]
+  Rank  3 | Doc ID: 20313      | Score: 0.39861 | Node: [['20313.json', 'i_1']]
+  Rank  4 | Doc ID: 37400      | Score: 0.39299 | Node: [['37400.json', 'i_1']]
+  Rank  5 | Doc ID: 37262      | Score: 0.39028 | Node: [['37262.json', 'i_1']]
+  Rank  6 | Doc ID: 37388      | Score: 0.38873 | Node: [['37388.json', 'i_1']]
+  Rank  7 | Doc ID: 36899      | Score: 0.38091 | Node: [['36899.json', 'i_1']]
+  Rank  8 | Doc ID: 37159      | Score: 0.37213 | Node: [['37159.json', 'i_1']]
+  Rank  9 | Doc ID: 37241      | Score: 0.36466 | Node: [['37241.json', 'i_1']]
+
+================================================================================
+QID: 37308.jpeg-3
+Ground Truth Document ID: 37308
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37029      | Score: 0.40730 | Node: [['37029.json', 'i_1']]
+  Rank  2 | Doc ID: 37036      | Score: 0.39795 | Node: [['37036.json', 'i_1']]
+  Rank  3 | Doc ID: 37262      | Score: 0.39210 | Node: [['37262.json', 'i_1']]
+  Rank  4 | Doc ID: 37321      | Score: 0.38414 | Node: [['37321.json', 'i_1']]
+  Rank  5 | Doc ID: 37197      | Score: 0.37061 | Node: [['37197.json', 'i_1']]
+  Rank  6 | Doc ID: 37274      | Score: 0.36912 | Node: [['37274.json', 'i_1']]
+  Rank  7 | Doc ID: 20153      | Score: 0.36403 | Node: [['20153.json', 'i_1']]
+  Rank  8 | Doc ID: 40406      | Score: 0.34487 | Node: [['40406.json', 'i_1']]
+  Rank  9 | Doc ID: 10999      | Score: 0.33899 | Node: [['10999.json', 'i_1']]
+
+================================================================================
+QID: 37308.jpeg-5
+Ground Truth Document ID: 37308
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37197      | Score: 1.24792 | Node: [['37197.json', 'i_1']]
+  Rank  2 | Doc ID: 20153      | Score: 1.20112 | Node: [['20153.json', 'i_1']]
+  Rank  3 | Doc ID: 37057      | Score: 1.18495 | Node: [['37057.json', 'i_1']]
+  Rank  4 | Doc ID: 37054      | Score: 1.18454 | Node: [['37054.json', 'i_1']]
+  Rank  5 | Doc ID: 37395      | Score: 1.18052 | Node: [['37395.json', 'i_1']]
+  Rank  6 | Doc ID: 37033      | Score: 1.17862 | Node: [['37033.json', 'i_1']]
+  Rank  7 | Doc ID: 36948      | Score: 1.15535 | Node: [['36948.json', 'i_1']]
+  Rank  8 | Doc ID: 37083      | Score: 1.15395 | Node: [['37083.json', 'i_1']]
+  Rank  9 | Doc ID: 37321      | Score: 1.13912 | Node: [['37321.json', 'i_1']]
+
+================================================================================
+QID: 37033.jpeg-5
+Ground Truth Document ID: 37033
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 37083      | Score: 0.81784 | Node: [['37083.json', 'i_1']]
+  Rank  2 | Doc ID: 37400      | Score: 0.70353 | Node: [['37400.json', 'i_1']]
+  Rank  3 | Doc ID: 37313      | Score: 0.59911 | Node: [['37313.json', 'i_1']]
+  Rank  4 | Doc ID: 20313      | Score: 0.59499 | Node: [['20313.json', 'i_1']]
+  Rank  5 | Doc ID: 37321      | Score: 0.59311 | Node: [['37321.json', 'i_1']]
+  Rank  6 | Doc ID: 37150      | Score: 0.58314 | Node: [['37150.json', 'i_1']]
+  Rank  7 | Doc ID: 43982      | Score: 0.57746 | Node: [['43982.json', 'i_1']]
+  Rank  8 | Doc ID: 37040      | Score: 0.57600 | Node: [['37040.json', 'i_1']]
+  Rank  9 | Doc ID: 36948      | Score: 0.57465 | Node: [['36948.json', 'i_1']]
+
+================================================================================
+QID: 37033.jpeg-8
+Ground Truth Document ID: 37033
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 36989      | Score: 0.71360 | Node: [['36989.json', 'i_1']]
+  Rank  2 | Doc ID: 36899      | Score: 0.69255 | Node: [['36899.json', 'i_1']]
+  Rank  3 | Doc ID: 37241      | Score: 0.68246 | Node: [['37241.json', 'i_1']]
+  Rank  4 | Doc ID: 37313      | Score: 0.67481 | Node: [['37313.json', 'i_1']]
+  Rank  5 | Doc ID: 37036      | Score: 0.67334 | Node: [['37036.json', 'i_1']]
+  Rank  6 | Doc ID: 37302      | Score: 0.67042 | Node: [['37302.json', 'i_1']]
+  Rank  7 | Doc ID: 37057      | Score: 0.66941 | Node: [['37057.json', 'i_1']]
+  Rank  8 | Doc ID: 37170      | Score: 0.66432 | Node: [['37170.json', 'i_1']]
+  Rank  9 | Doc ID: 37262      | Score: 0.65084 | Node: [['37262.json', 'i_1']]
+
+================================================================================
+QID: 37033.jpeg-11
+Ground Truth Document ID: 37033
+Top-9 Retrieved Units:
+  Rank  1 | Doc ID: 20153      | Score: 0.41000 | Node: [['20153.json', 'i_1']]
+  Rank  2 | Doc ID: 37388      | Score: 0.34389 | Node: [['37388.json', 'i_1']]
+  Rank  3 | Doc ID: 20354      | Score: 0.34183 | Node: [['20354.json', 'i_1']]
+  Rank  4 | Doc ID: 36989      | Score: 0.33965 | Node: [['36989.json', 'i_1']]
+  Rank  5 | Doc ID: 36899      | Score: 0.33643 | Node: [['36899.json', 'i_1']]
+  Rank  6 | Doc ID: 37302      | Score: 0.33464 | Node: [['37302.json', 'i_1']]
+  Rank  7 | Doc ID: 37115      | Score: 0.33442 | Node: [['37115.json', 'i_1']]
+  Rank  8 | Doc ID: 37036      | Score: 0.33427 | Node: [['37036.json', 'i_1']]
+  Rank  9 | Doc ID: 37095      | Score: 0.33386 | Node: [['37095.json', 'i_1']]
+

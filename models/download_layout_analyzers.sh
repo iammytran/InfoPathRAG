@@ -52,7 +52,7 @@ if [[ -z "$ONLY" || "$ONLY" == "mineru" ]]; then
     # `-s huggingface` chooses the HF source; `-m all` fetches the full set
     # (layout + OCR + formula + table). Trim to `-m layout` if you only need
     # layout analysis.
-    mineru-models-download -s huggingface -m all
+    mineru-models-download --source huggingface --tier basic
 fi
 
 echo

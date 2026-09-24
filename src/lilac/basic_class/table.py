@@ -3,7 +3,6 @@ import os
 import re
 import json
 from typing import List, Dict
-from bs4 import BeautifulSoup
 
 from src.lilac.basic_class.component import Component
 from src.utils.constants import EmbeddingMode
@@ -47,8 +46,10 @@ class Table(Component):
         """
 
         # 1) gather image filepaths as we serialize rows
+        table_filename = self.component_obj["filename"]
+        table_filepath = self._get_image_abs_path(table_filename)
         in_table_image_filepaths: List[str] = []
-
+        in_table_image_filepaths.append(table_filepath)
 
         # 2) serialize header
         serialized_text = (
@@ -61,14 +62,11 @@ class Table(Component):
         # text blob in component_obj["text"] (from MinerU's table_body or
         # DocLayoutYOLO+VLM OCR). They have no structured row list. Fall back
         # to that text when "table" is missing or empty.
-        # print(f"self.component_obj: {self.component_obj}")
         structured_rows = self.component_obj.get("table") or []
-        # print(f"structured_rows: {structured_rows}")
         if not structured_rows:
             text_blob = (self.component_obj.get("text") or "").strip()
-            # print(f"text_blob: {text_blob}")
             if text_blob:
-                serialized_text += text_blob
+                serialized_text += text_blob + " [SEP] "
 
         if structured_rows:
             hdr_txt, hdr_imgs = self.serialize_row(
@@ -119,8 +117,6 @@ class Table(Component):
         serialized_text = serialized_text.strip()
         serialized_text = re.sub(r'\[SEP\]$', '', serialized_text).strip()
 
-        in_table_image_filepaths.append(self._get_image_abs_path(self.component_obj.get("filename")))
-
         if EmbeddingMode.IMAGE.value not in mode:
             in_table_image_filepaths = []
 
@@ -135,69 +131,6 @@ class Table(Component):
         
         return something 
 
-    def naturalize_html_text(self, html_text):
-        # 1. TÁCH BẢNG VÀ CHỮ TRƯỚC BẢNG
-        match = re.search(r"(<table.*?>)", html_text, re.IGNORECASE)
-
-        if match:
-            split_index = match.start()
-            table_context = html_text[:split_index].strip()
-            html_content = html_text[split_index:]
-        else:
-            table_context = ""
-            html_content = html_text.strip()
-
-        # 2. Parse HTML Bảng
-        soup = BeautifulSoup(html_content, "html.parser")
-        rows = soup.find_all("tr")
-        if not rows:
-            return table_context if table_context else ""
-
-        # 3. TỰ ĐỘNG DETECT COLUMN NAMES
-        headers = []
-        for cell in rows[0].find_all("td"):
-            header_text = cell.get_text(strip=True).upper()
-            if not header_text and len(headers) == 0:
-                header_text = "ITEM"
-            headers.append(header_text)
-
-        natural_sentences = []
-
-        # 4. Duyệt qua các dòng dữ liệu
-        for row in rows[1:]:
-            cells = [
-                re.sub(r"\s+", " ", cell.get_text(strip=True))
-                for cell in row.find_all("td")
-            ]
-            if len(cells) < len(headers):
-                continue
-
-            row_parts = []
-            for i, header_name in enumerate(headers):
-                if i == 0:
-                    continue
-                value = cells[i]
-                if len(value) > 15 and value.isdigit():
-                    value = "N/A"
-                elif value == "":
-                    value = "None"
-                row_parts.append(f"{header_name}: {value}")
-
-            subject = cells[0] if cells[0] else f"Row_{rows.index(row)}"
-            sentence = f"- {subject}: {', '.join(row_parts)}."
-            natural_sentences.append(sentence)
-
-        # 5. XỬ LÝ GHÉP CHUỖI TÙY THEO CÓ TABLE_CONTEXT HAY KHÔNG
-        table_data_text = "\n".join(natural_sentences)
-
-        if table_context:
-            # Nếu có context, chuẩn hóa dấu kết thúc và cộng vào đầu câu
-            if not table_context.endswith((".", "?", ":")):
-                table_context += ":"
-            return f"{table_context}\n{table_data_text}"
-        else:
-            # Nếu KHÔNG CÓ context, chỉ trả về data của bảng thuần túy
-            return table_data_text
 
     def serialize_into_chunks(self, mode: List[str], chunk_size: int = 512) -> List[Dict]:
         """
@@ -242,7 +175,6 @@ class Table(Component):
                     self._get_image_summary(fn) 
                     for fn in in_table_image_filepaths
                 ]
-        # print(f"in_table_image_filepaths: {in_table_image_filepaths}")
 
         # 5) build a single “image_summaries” list so each index i → all modes concatenated
         image_summaries: List[str] = []
@@ -384,7 +316,7 @@ class Table(Component):
 
         if "image" in cell and "filename" in cell["image"] and cell["image"]["filename"] != None:
             image_filename = cell["image"]["filename"]
-            image_filepath = self._get_image_abs_path(image_filename)
+            image_filepath = self._get_image_abs_path(image_filename)    
             
             if image_filepath not in in_table_image_filepaths:
                 in_table_image_filepaths.append(image_filepath)
@@ -579,45 +511,25 @@ class Table(Component):
     
 if __name__ == "__main__":
     
-    # TARGET_PATH = f"{REPO_ROOT}/datasets/MultimodalQA/parsed_documents/dev/2017_Major_League_Baseball_season.json"
+    TARGET_PATH = f"{REPO_ROOT}/datasets/MultimodalQA/parsed_documents/dev/2017_Major_League_Baseball_season.json"
     
-    # with open(TARGET_PATH, "r") as f:
-    #     json_data = json.load(f)
+    with open(TARGET_PATH, "r") as f:
+        json_data = json.load(f)
         
-    # target_table_component = json_data["table"]["t_1"]
+    target_table_component = json_data["table"]["t_1"]
     
-    # table = Table(
-    #     document_title = json_data["title"],
-    #     hierarchy_dict = json_data["hierarchy"],
-    #     component_id   = "t_1",
-    #     component_object = target_table_component,
-    #     images_dir          = f"{REPO_ROOT}/datasets/MultimodalQA/image_components/dev",
-    #     image_summaries_dir = f"{REPO_ROOT}/datasets/MultimodalQA/image_summaries/dev"
-    # )
+    table = Table(
+        document_title = json_data["title"],
+        hierarchy_dict = json_data["hierarchy"],
+        component_id   = "t_1",
+        component_object = target_table_component,
+        images_dir          = f"{REPO_ROOT}/datasets/MultimodalQA/image_components/dev",
+        image_summaries_dir = f"{REPO_ROOT}/datasets/MultimodalQA/image_summaries/dev"
+    )
     
-    # outputs = table.serialize(mode = ["image", "summary"])
+    outputs = table.serialize(mode = ["image", "summary"])
     
-    # print(json.dumps(outputs, indent = 4))
+    print(json.dumps(outputs, indent = 4))
     
-    # with open("check.json", "w") as f:
-    #     json.dump(outputs, f, indent = 4)
-    
-    filename = "datasets/InfoVQA/parsed_documents/dev/10030.json"
-    with open(filename, 'r') as file:
-        parsed_document = json.load(file)
-
-    table_segment_serializations = []
-    image_dir = "datasets/InfoVQA/image_components/dev"
-    summaries_dir = "artifacts/InfoVQA/image_summaries/dev"
-    sub_image_dir = "artifacts/InfoVQA/image_components_sub/dev"
-    subimage_summaries_dir = "artifacts/InfoVQA/image_components_sub/dev"
-    mode = "image"
-    doc_title = parsed_document["title"]
-    hierarchy_dict  = parsed_document["hierarchy"]
-    table_segment_component_ids = parsed_document["table_segment"]
-    for component_id in table_segment_component_ids:
-        component = parsed_document["table_segment"][component_id]
-        table_segment_component = Table(filename, doc_title, hierarchy_dict, component_id, component,
-                                images_dir = sub_image_dir, image_summaries_dir = subimage_summaries_dir)
-        table_segment_serializations.append(table_segment_component.serialize(mode))
-    print(table_segment_serializations[0])
+    with open("check.json", "w") as f:
+        json.dump(outputs, f, indent = 4)

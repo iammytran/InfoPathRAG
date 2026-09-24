@@ -26,9 +26,14 @@ def main():
     with open(pickle_file, "rb") as file:
         G = pickle.load(file)
 
+    data = []
     # print(type(G))
     with open(output_file, 'w') as file:
+        data = G.get_intra_document_edges_dict()
         json.dump(G.get_intra_document_edges_dict(), file, indent=2, default=custom_serializer)
+
+    count = len(data)
+    print(count)
     
     # logging.info(G.)
     

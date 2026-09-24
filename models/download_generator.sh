@@ -17,6 +17,6 @@ hf download \
     Qwen/Qwen2.5-VL-7B-Instruct \
     --local-dir "$REPO_ROOT/models/Qwen2.5-VL-7B-Instruct"
 
-# hf download \
-#     Qwen/Qwen2.5-7B-Instruct \
-#     --local-dir "$REPO_ROOT/models/Qwen2.5-7B-Instruct"
+hf download \
+    Qwen/Qwen2.5-7B-Instruct \
+    --local-dir "$REPO_ROOT/models/Qwen2.5-7B-Instruct"

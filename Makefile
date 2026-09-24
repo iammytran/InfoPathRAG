@@ -1,5 +1,5 @@
 # Khai báo các target không tạo ra file thực tế (chỉ là tên câu lệnh)
-.PHONY: all embed retrieve visualize_result run_lilac
+.PHONY: all install preprocessing decompose_query embed retrieve visualize_result run_lilac
 
 # Lệnh mặc định khi gõ "make" không truyền tham số
 all: run_lilac
@@ -12,8 +12,12 @@ install:
 	./models/download_generator.sh           # Qwen2.5-VL-7B + Qwen2.5-72B-Instruct
 
 	git clone https://github.com/Dao-AILab/flash-attention.git
+	git checkout v2.2.0
+	MAX_JOBS=4 python setup.py install
+
 
 preprocessing:
+	cd ..
 	./models/download_layout_analyzers.sh --only mineru         # one-time (installs CLI + weights)
 	./scripts/preprocessing/layout_mineru.sh \
 		--input  datasets/MyDataset/raw_pdfs \

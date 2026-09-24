@@ -276,9 +276,9 @@ class Retriever:
     def run(self):
         
         # qids = self._labeled_benchmark.get_qid_list()
-        target_qids = ['41142.jpeg-2', '43600.jpeg-1', '43600.jpeg-3']
+        # target_qids = ['41142.jpeg-2', '43600.jpeg-1', '43600.jpeg-3']
         qids = self._questions_manager.get_qid_list()
-        qids = [qid for qid in qids if qid in target_qids]
+        # qids = [qid for qid in qids if qid in target_qids]
         
         for qid in tqdm(qids, desc = "Retrieving"):
             

@@ -56,7 +56,7 @@ class LabelType(Enum):
 @add_enum_utilities
 class RetrievalMetric(Enum):
     MRR = "MRR@10"
-    PAGE_RECALL = "Page Recall"
+    PAGE_RECALL = "Recall@3"
     COMPONENT_RECALL = "Component Recall"
     DOCUMENT_RECALL = "Document Recall"
     COMPONENT_HIT   = "Component Hit"

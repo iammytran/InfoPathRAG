@@ -46,8 +46,8 @@ def main():
                     help="Cap on parallel GPU workers (0 = use all visible)")
     args = ap.parse_args()
 
-    img_dir = pathlib.Path(f"{REPO_ROOT}/datasets/{args.target_data}/image_components/dev")
-    out_dir = pathlib.Path(f"{REPO_ROOT}/artifacts/{args.target_data}/image_summaries/dev")
+    img_dir = pathlib.Path(f"{REPO_ROOT}/datasets/{args.target_data}/image_components/test")
+    out_dir = pathlib.Path(f"{REPO_ROOT}/artifacts/{args.target_data}/image_summaries/test")
 
     if not img_dir.is_dir():
         print(f"❌  Image dir not found: {img_dir}")

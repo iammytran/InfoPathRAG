@@ -31,7 +31,7 @@ done
 
 for EMB in "${EMBEDDERS[@]}"; do
     case "$EMB" in
-        MM-Embed) RUN_TAG="mmembed_2008";;
+        MM-Embed) RUN_TAG="mmembed_22081405";;
         MMe5)     RUN_TAG="mme5_default";;
         UniME)    RUN_TAG="unime_default";;
         *) echo "unknown embedder: $EMB" >&2; exit 1;;

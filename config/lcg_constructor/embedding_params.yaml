@@ -43,10 +43,10 @@ embedders:
 
     params_by_type:
       vqa:
-        text:                          {max_length: 4096,  batch_size: 4}
+        text:                          {max_length: 4096,  batch_size: 1}
         sentence:                      {max_length: 4096,  batch_size: 8}
         table+image+summary:           {max_length: 4096,  batch_size: 1}
-        table_segment+image+summary:   {max_length: 4096,  batch_size: 4}
+        table_segment+image+summary:   {max_length: 4096,  batch_size: 1}
         image+image+summary:           {max_length: 4096,  batch_size: 1}
         subimage+image+summary:        {max_length: 4096,  batch_size: 4}
         page:                          {max_length: 4096,  batch_size: 1}

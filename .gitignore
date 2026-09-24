@@ -69,3 +69,5 @@ algorithm_results/
 models/*/
 
 datasets/InfoVQA/parsed_documents
+
+debug/

@@ -14,7 +14,6 @@ Per-page id conventions follow shipped MP-DocVQA:
   i_1_i<N>           image subimage
   i_1_p<N>           sentence (per-page global counter)
   i_1_t<N>           table_segment
-  i_1_c<N>           table cell
 
 Pipeline:
   1. Walk every *_content_list.json under --layout. For each block, route to
@@ -32,20 +31,12 @@ import json
 import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
-from itertools import islice
-import os
-import logging
+from bs4 import BeautifulSoup
 import re
 import pandas as pd
-from bs4 import BeautifulSoup
 from io import StringIO
 
 from src.lilac.lcg_constructor.preprocessing._caption_via_qwen_vl import caption_images
-
-# logging.basicConfig(level=logging.INFO,
-#                     format='%(asctime)s - %(levelname)s - %(message)s',
-#                     filename=os.path.join('debug', 'mineru_to_lilac.log'),
-#                     filemode='a')
 
 
 TEXT_LIKE_TYPES = {
@@ -65,7 +56,8 @@ SUMMARY_PROMPT = (
 def _find_content_lists(layout_dir: Path) -> Dict[str, Path]:
     """Locate every `*_content_list.json` under layout_dir, keyed by doc_id."""
     found: Dict[str, Path] = {}
-    for p in layout_dir.rglob("*_content_list.json"):
+    folders = layout_dir.rglob("*_content_list.json")
+    for p in folders:
         try:
             rel = p.relative_to(layout_dir)
         except ValueError:
@@ -87,8 +79,6 @@ def _block_text(block: Dict) -> Optional[str]:
             caption = " ".join(caption)
         text = (caption + "\n" + body) if body else caption
         return text.strip() or None
-    if btype in IMAGE_TYPES:
-        return (block.get("content") or block.get("md") or "") or None
     return None
 
 
@@ -99,41 +89,206 @@ def _block_image_path(block: Dict, content_list_dir: Path) -> Optional[Path]:
     p = (content_list_dir / rel).resolve()
     return p if p.exists() else None
 
-def _process_cell_preserving_tags(cell):
-    parts = []
-    # Duyệt qua từng phần tử con bên trong ô <td> theo đúng thứ tự đọc từ trái qua phải
-    for content in cell.contents:
-        if content.name == "img":
-            # Nếu là thẻ img, lấy thuộc tính src và bọc nó lại thành dạng text đại diện
-            img_src = content.get("src", "")
-            parts.append(f" <Image: {img_src}> ")
-        else:
-            # Nếu là text thuần, chỉ cần ép kiểu về chuỗi và clear khoảng trắng thừa
-            text_inside = str(content).strip()
-            if text_inside:
-                parts.append(text_inside)
-                
-    # Gộp lại thành một chuỗi duy nhất của ô đó
-    return "".join(parts).strip()
 
-def _extract_text_and_image(raw_text):
-    # Pattern để tìm cấu trúc <Image: ...>
-    img_pattern = r"<Image:\s*(.*?)>"
+def build_parsed_documents(
+    layout_dir: Path,
+    images_dir: Path,
+    parsed_documents_out_dir: Path,
+    crops_out_dir: Path,
+) -> List[Path]:
+    """Build skeleton parsed_documents + image crops. Returns crops needing Qwen-VL summary."""
+    parsed_documents_out_dir.mkdir(parents=True, exist_ok=True)
+    crops_out_dir.mkdir(parents=True, exist_ok=True)
+
+    content_lists = _find_content_lists(layout_dir)
+    # keys_to_keep = ['10183']
+
+    # # # Create the subset (ignoring keys that might not exist)
+    # content_lists = {k: content_lists[k] for k in keys_to_keep if k in content_lists}
+    print(f"[adapter/mineru] {len(content_lists)} content_list.json under {layout_dir}")
+
+    crops_to_summarize: List[Path] = []
+    type_counts: Dict[str, int] = {}
+
+    for doc_id, cl_path in content_lists.items():
+        with open(cl_path) as f:
+            blocks = json.load(f)
+        if not isinstance(blocks, list):
+            blocks = blocks.get("content_list", [])
+
+        page_img_candidates = [images_dir / f"{doc_id}.jpg",
+                               images_dir / f"{doc_id}.jpeg",
+                               images_dir / f"{doc_id}.png"]
+        page_img = next((p for p in page_img_candidates if p.exists()), None)
+        if page_img is None:
+            print(f"[adapter/mineru] page image not found for {doc_id}")
+            continue
+
+        i_counter = 0
+        p_counter = 0
+        t_counter = 0
+
+        subimage_entries: Dict[str, Dict] = {}
+        sentence_entries: Dict[str, Dict] = {}
+        table_entries: Dict[str, Dict] = {}
+        id_sequence: List[str] = ["i_1"]
+
+        for block in blocks:
+            btype = block.get("type", "")
+            type_counts[btype] = type_counts.get(btype, 0) + 1
+            common_meta = {
+                "dla_idx": block.get("dla_idx") or block.get("idx"),
+                "dla_type": btype,
+                "_bbox": block.get("bbox"),
+            }
+
+            if btype in IMAGE_TYPES:
+                src_img = _block_image_path(block, cl_path.parent)
+                if src_img is None:
+                    continue
+                i_counter += 1
+                cid = f"i_1_i{i_counter}"
+                crop_fname = f"{doc_id}___i_{i_counter}{src_img.suffix or '.jpg'}"
+                target_crop = crops_out_dir / doc_id / crop_fname
+                target_crop.parent.mkdir(parents=True, exist_ok=True)
+                if not target_crop.exists():
+                    shutil.copyfile(src_img, target_crop)
+                subimage_entries[cid] = {
+                    **common_meta,
+                    "filename": crop_fname,
+                    "caption": {"text": "", "edges": []},
+                }
+                crops_to_summarize.append(target_crop)
+                id_sequence.append(cid)
+                continue
+
+            native_text = _block_text(block)
+            if native_text is None:
+                continue  # unknown block with no text — skip
+
+            if btype in TABLE_TYPES:
+                t_counter += 1
+                cid = f"i_1_t{t_counter}"
+                rows = _parse_html_to_table(doc_id, native_text)
+                crop_fname = f"{doc_id}___t_{t_counter}.jpg"
+                table_data = []
+                for row in rows:
+                    row_data = []
+                    for cell in row:
+                        row_data.append({"text": cell})
+                    table_data.append(row_data)
+
+                table_entries[cid] = {
+                    **common_meta,
+                    "text": native_text,
+                    "table_caption": block.get('table_caption', ''), 
+                    "rows": len(rows),
+                    "table": table_data,
+                    "filename": crop_fname,
+                    "edges": [],
+                }
+                # table_entries[cid] = {
+                #     **common_meta,
+                #     "text": _parse_html_to_table(doc_id, native_text),
+                #     "edges": [],
+                # }
+            else:  # text-like
+                p_counter += 1
+                cid = f"i_1_p{p_counter}"
+                sentence_entries[cid] = {
+                    **common_meta,
+                    "text": native_text,
+                    "edges": [],
+                }
+            id_sequence.append(cid)
+
+        parsed_doc = {
+            "title": doc_id,
+            "hierarchy": {},
+            "id_sequence": id_sequence,
+            "header": {},
+            "text": {},
+            "table": table_entries,
+            "image": {
+                "i_1": {
+                    "filename": page_img.name,
+                    "caption": {"text": "", "edges": []},
+                }
+            },
+            "sentence": sentence_entries,
+            "proposition": {},
+            "table_segment": {},
+            "subimage": subimage_entries,
+            "id_to_html": {},
+        }
+
+        parsed_doc = transform_table_to_table_segment(parsed_doc)
+
+        with open(parsed_documents_out_dir / f"{doc_id}.json", "w", encoding="utf-8") as f:
+            json.dump(parsed_doc, f, indent=4)
+
+    if type_counts:
+        print(f"[adapter/mineru] block type counts: {type_counts}")
+    return crops_to_summarize
+
+def transform_table_to_table_segment(parsed_doc):
+    table_entries = parsed_doc.get("table", {})
+    table_segment_entries = {}
+
+    for block_id, block_content in table_entries.items():
+        ts_counter = 0
+        table_content = block_content.get('table', [])
+        if len(table_content) == 0:
+            return parsed_doc
+        header = table_content[0]
+        body = table_content[1:]
+        imagename = block_content.get('filename', '')
+        parent_id = f"{block_id}"
+        for row in body:
+            ts_counter += 1
+            table_segment_id = f"{parent_id}_ts{ts_counter}"
+            table_segment_entries[table_segment_id] = {
+                "dla_type": "table",
+                "table": [
+                    header,
+                    row
+                ],
+                # "filename": imagename,
+                "edges": [],
+            }
+
+    parsed_doc["table_segment"] = table_segment_entries
+
+    return parsed_doc
+
+def remove_img_tag_from_html_text(html_data):
+    # 1. Bỏ thẻ img
+    clean_html = re.sub(r"<img[^>]*>", "", html_data)
+
+    # 2. Xóa các tiền tố thừa như ID / [SEP] nếu không cần thiết
+    clean_html = re.sub(r"^\d+\s*\[SEP\]\s*", "", clean_html)
+    return clean_html
+
+def _fix_mineru_sticky_text(text):
+    if not isinstance(text, str):
+        return text
     
-    # 1. Tìm image source
-    match = re.search(img_pattern, raw_text)
-    img_src = match.group(1).strip() if match else None
+    # 1. Phát hiện chữ thường/số dính liền chữ hoa (ví dụ: eL trong peopleLarger)
+    # Tiến hành chèn dấu chấm và khoảng trắng vào giữa chúng để tách câu rõ ràng
+    cleaned = re.sub(r'([a-z0-9])([A-Z])', r'\1. \2', text)
     
-    # 2. Xóa cụm <Image: ...> ra khỏi chuỗi để lấy phần text sạch
-    # Hàm re.sub sẽ thay thế cụm <Image: ...> bằng chuỗi rỗng '', đồng thời .strip() để dọn khoảng trắng thừa
-    text_content = re.sub(img_pattern, "", raw_text).strip()
+    # 2. Xử lý thêm trường hợp dấu đóng ngoặc dính liền chữ (nếu có, ví dụ: 'pickforks)Lawnmowers')
+    cleaned = re.sub(r'(\))([A-Z])', r'\1. \2', cleaned)
+
+    cleaned = re.sub(r'(?<!<Image)(?<!http)(?<!https):([A-Z])', r': \1', cleaned)
     
-    # Thu gọn các khoảng trắng bị thừa ở giữa (nếu ảnh nằm giữa chữ)
-    text_content = re.sub(r"\s+", " ", text_content)
+    # 3. Thu gọn các khoảng trắng thừa thành 1 khoảng trắng duy nhất
+    cleaned = re.sub(r'\s+', ' ', cleaned)
     
-    return text_content, img_src
+    return cleaned.strip()
 
 def _parse_html_to_table(doc_id, html_str):
+    html_str = remove_img_tag_from_html_text(html_str)
     soup = BeautifulSoup(html_str, 'html.parser')
     table = soup.find('table')
 
@@ -144,6 +299,7 @@ def _parse_html_to_table(doc_id, html_str):
     # 1. DUYỆT QUA TỪNG Ô ĐỂ LÀM SẠCH TEXT TRƯỚC (Giữ nguyên logic custom của bạn)
     for cell in table.find_all(["td", "th"]):
         raw_content = _process_cell_preserving_tags(cell)
+        # print(f"before fixe_mineru: {raw_content}")
         fixed_sticky_text = _fix_mineru_sticky_text(raw_content)
         
         # Thay thế nội dung bên trong ô bằng đoạn text đã xử lý sạch
@@ -172,6 +328,25 @@ def _parse_html_to_table(doc_id, html_str):
         print(f"Error for doc_id {doc_id}: {e}")
         return []
 
+def _process_cell_preserving_tags(cell):
+    parts = []
+    # Duyệt qua từng phần tử con bên trong ô <td> theo đúng thứ tự đọc từ trái qua phải
+    for content in cell.contents:
+        if content.name == "img":
+            print(f"found image: {content}")
+            # # Nếu là thẻ img, lấy thuộc tính src và bọc nó lại thành dạng text đại diện
+            # img_src = content.get("src", "")
+            # parts.append(f" <Image: {img_src}> ")
+        else:
+            # print(f"not found image: {content}")
+            # Nếu là text thuần, chỉ cần ép kiểu về chuỗi và clear khoảng trắng thừa
+            text_inside = str(content).strip()
+            if text_inside:
+                parts.append(text_inside)
+                
+    # Gộp lại thành một chuỗi duy nhất của ô đó
+    return "".join(parts).strip()
+    
 def _add_dla_idx():
     mineru_outputs_dir = Path("artifacts/InfoVQA/mineru_outputs_pipeline/dev")
     middle_file_paths = sorted(mineru_outputs_dir.rglob("*_middle.json"))
@@ -236,299 +411,32 @@ def _add_dla_idx():
             
     return updated_docs  # Trả về list này để hàm khác có thể tái sử dụng nếu cần
 
-def _crop_fname(crops_out_dir, doc_id, img_src, counter, key):
-    crop_fname = f"{doc_id}___{key}_{counter}{Path(img_src).suffix or '.jpg'}"
-    target_crop = crops_out_dir / doc_id / crop_fname
-    target_crop.parent.mkdir(parents=True, exist_ok=True)
-    if not target_crop.exists():
-        shutil.copyfile(img_src, target_crop)
-    return crop_fname
-
-def build_parsed_documents(
-    layout_dir: Path,
-    images_dir: Path,
-    parsed_documents_out_dir: Path,
-    crops_out_dir: Path,
-) -> List[Path]:
-    """Build skeleton parsed_documents + image crops. Returns crops needing Qwen-VL summary."""
-    parsed_documents_out_dir.mkdir(parents=True, exist_ok=True)
-    crops_out_dir.mkdir(parents=True, exist_ok=True)
-    content_lists = _find_content_lists(layout_dir)
-
-    # keys_to_keep = ['10090']
-
-    # # Create the subset (ignoring keys that might not exist)
-    # content_lists = {k: content_lists_full[k] for k in keys_to_keep if k in content_lists_full}
-    # TODO: Add a check if layout_dir exists
-    print(f"[adapter/mineru] {len(content_lists)} content_list.json under {layout_dir}")
-
-    crops_to_summarize: List[Path] = []
-    type_counts: Dict[str, int] = {}
-
-    for doc_id, cl_path in content_lists.items():
-        with open(cl_path, "r", encoding="utf-8") as f:
-            blocks = json.load(f)
-        if not isinstance(blocks, list):
-            blocks = blocks.get("content_list", [])
-
-        page_img_candidates = [images_dir / f"{doc_id}.jpg",
-                            images_dir / f"{doc_id}.jpeg",
-                            images_dir / f"{doc_id}.png"]
-        page_img = next((p for p in page_img_candidates if p.exists()), None)
-        if page_img is None:
-            print(f"[adapter/mineru] page image not found for {doc_id}")
-            continue
-
-        i_counter = 0
-        p_counter = 0
-        t_counter = 0
-
-        subimage_entries: Dict[str, Dict] = {}
-        text_entries: Dict[str, Dict] = {}
-        table_entries: Dict[str, Dict] = {}
-        id_sequence: List[str] = ["i_1"]
-
-        for block in blocks:
-            btype = block.get("type", "")
-            # if btype in IMAGE_TYPES:
-            #     print("có image")
-            type_counts[btype] = type_counts.get(btype, 0) + 1
-            common_meta = {
-                "dla_idx": v if (v := block.get("dla_idx")) is not None else block.get("idx"),
-                "dla_type": btype,
-                "_bbox": block.get("bbox"),
-            }
-
-            native_text = _block_text(block)
-            if native_text is None and btype not in IMAGE_TYPES:
-                continue  # unknown block with no text — skip
-
-            if btype in IMAGE_TYPES:
-                # print("có image")
-                # print(f"doc_id: {doc_id}")
-                # print(f"block: {block}")
-                sub_type = block.get("sub_type", "")
-                if btype == "chart":
-                    native_text = f"A {sub_type} chart: {native_text}"
-                if sub_type == "flowchart":
-                    native_text = f"A {sub_type}: {native_text}"
-                src_img = _block_image_path(block, cl_path.parent)
-                if src_img is None:
-                    continue
-                i_counter += 1
-                cid = f"i_1_i{i_counter}"
-                crop_fname = f"{doc_id}___i_{i_counter}{src_img.suffix or '.jpg'}"
-                target_crop = crops_out_dir / doc_id / crop_fname
-                target_crop.parent.mkdir(parents=True, exist_ok=True)
-                if not target_crop.exists():
-                    shutil.copyfile(src_img, target_crop)
-                subimage_entries[cid] = {
-                    **common_meta,
-                    "filename": crop_fname,
-                    "caption": {"text": native_text, "edges": []},
-                }
-                crops_to_summarize.append(target_crop)
-                id_sequence.append(cid)
-                continue
-
-            if btype in TABLE_TYPES:
-                # print('có table')
-                src_img = _block_image_path(block, cl_path.parent)
-                if src_img is None:
-                    continue  
-                t_counter += 1
-                cid = f"i_1_t{t_counter}"
-                crop_fname = f"{doc_id}___t_{t_counter}{src_img.suffix or '.jpg'}"
-                target_crop = crops_out_dir / doc_id / crop_fname
-                target_crop.parent.mkdir(parents=True, exist_ok=True)
-                if not target_crop.exists():
-                    shutil.copyfile(src_img, target_crop)
-                rows = _parse_html_to_table(doc_id, native_text)
-
-                table_data = []
-                c_counter = 1
-                for row in rows:
-                    row_data = []
-                    for cell in row:
-                        if "<Image" in cell:
-                            text, img_data = _extract_text_and_image(cell)
-                            src_img = cl_path.parent / img_data
-                            row_data.append({
-                                "text": text,
-                                "image": {"filename": _crop_fname(crops_out_dir, doc_id, src_img, c_counter, 'c')}
-                            })
-                            c_counter += 1  # Clean, readable incrementation
-                        else:
-                            row_data.append({"text": cell})
-                    table_data.append(row_data)
-
-                table_entries[cid] = {
-                    **common_meta,
-                    "text": native_text,
-                    "table_caption": block.get('table_caption', ''), 
-                    "rows": len(rows),
-                    "table": table_data,
-                    "filename": crop_fname,
-                    "edges": [],
-                }
-            else:  # text-like
-                if "no text" in native_text.lower():
-                    break
-                p_counter += 1
-                cid = f"i_1_p{p_counter}"
-                text_entries[cid] = {
-                    **common_meta,
-                    "text": native_text,
-                    "edges": [],
-                }
-            id_sequence.append(cid)
-
-        parsed_doc = {
-            "title": doc_id,
-            "hierarchy": {},
-            "id_sequence": id_sequence,
-            "header": {},
-            "text": text_entries,
-            "table": table_entries,
-            "image": {
-                "i_1": {
-                    "filename": page_img.name,
-                    "caption": {"text": "", "edges": []},
-                }
-            },
-            "sentence": {},
-            "proposition": {},
-            "table_segment": {},
-            "subimage": subimage_entries,
-            "id_to_html": {},
-        }
-        
-        parsed_doc = transform_text_to_sentence(parsed_doc)
-        parsed_doc = transform_table_to_table_segment(parsed_doc)
-
-        with open(parsed_documents_out_dir / f"{doc_id}.json", "w", encoding="utf-8") as f:
-            json.dump(parsed_doc, f, indent=4, ensure_ascii=False)
-
-    if type_counts:
-        print(f"[adapter/mineru] block type counts: {type_counts}")
-    return crops_to_summarize
-
-def transform_text_to_sentence(parsed_doc):
-    text_entries = parsed_doc.get("text", {}) 
-    sentence_entries = {}
-    
-    for block_id, block_content in text_entries.items():
-        st_counter = 0
-        text = block_content.get("text", "")
-        # Split by period
-        sentences = text.split(".")
-        for sentence in sentences:
-            if sentence.strip() == "":
-                continue
-            st_counter += 1
-            parent_id = f"{block_id}"
-            sentence_id = f"{parent_id}_st{st_counter}"
-            sentence_entries[sentence_id] = {
-                "dla_type": "text",
-                "text": sentence.strip(),
-                "edges": [],
-            }
-
-    parsed_doc["sentence"] = sentence_entries
-    return parsed_doc
-
-def transform_table_to_table_segment(parsed_doc):
-    table_entries = parsed_doc.get("table", {})
-    table_segment_entries = {}
-
-    for block_id, block_content in table_entries.items():
-        ts_counter = 0
-        table_content = block_content.get('table', [])
-        if len(table_content) == 0:
-            return parsed_doc
-        header = table_content[0]
-        body = table_content[1:]
-        imagename = block_content.get('filename', '')
-        parent_id = f"{block_id}"
-        for row in body:
-            ts_counter += 1
-            table_segment_id = f"{parent_id}_ts{ts_counter}"
-            table_segment_entries[table_segment_id] = {
-                "dla_type": "table",
-                "table": [
-                    header,
-                    row
-                ],
-                "filename": imagename,
-                "edges": [],
-            }
-
-    parsed_doc["table_segment"] = table_segment_entries
-
-    return parsed_doc
-
-def _fix_mineru_sticky_text(text):
-    if not isinstance(text, str):
-        return text
-    
-    # 1. Phát hiện chữ thường/số dính liền chữ hoa (ví dụ: eL trong peopleLarger)
-    # Tiến hành chèn dấu chấm và khoảng trắng vào giữa chúng để tách câu rõ ràng
-    cleaned = re.sub(r'([a-z0-9])([A-Z])', r'\1. \2', text)
-    
-    # 2. Xử lý thêm trường hợp dấu đóng ngoặc dính liền chữ (nếu có, ví dụ: 'pickforks)Lawnmowers')
-    cleaned = re.sub(r'(\))([A-Z])', r'\1. \2', cleaned)
-
-    cleaned = re.sub(r'(?<!<Image)(?<!http)(?<!https):([A-Z])', r': \1', cleaned)
-    
-    # 3. Thu gọn các khoảng trắng thừa thành 1 khoảng trắng duy nhất
-    cleaned = re.sub(r'\s+', ' ', cleaned)
-    
-    return cleaned.strip()
-
 def merge_subimage_captions(parsed_documents_out_dir: Path, crops_out_dir: Path) -> None:
     """Read per-crop .txt sidecars and merge into subimage[*].caption.text."""
     files = sorted(parsed_documents_out_dir.glob("*.json"))
     merged, missing = 0, 0
     for pd_path in files:
-        with open(pd_path, "r", encoding="utf-8") as f:
+        with open(pd_path) as f:
             pd = json.load(f)
         doc_id = pd_path.stem
         any_updated = False
         for sid, sv in pd.get("subimage", {}).items():
-            print(f"sid: {sid}")
-            # 1. Lấy text hiện tại trong JSON ra trước (nếu không có thì mặc định là chuỗi rỗng "")
-            current_text = (sv.get("caption") or {}).get("text", "")
-
-            # 2. KIỂM TRA ĐIỀU KIỆN: Chỉ xử lý NẾU text hiện tại đang TRỐNG
-            if not current_text:  
-                print(f"text in parsed_doc is empty")
-                crop_fname = sv.get("filename", "")
-                if not crop_fname:
-                    missing += 1
-                    continue
-                
-                txt_path = (crops_out_dir / doc_id / crop_fname).with_suffix(".txt")
-                
-                if txt_path.exists():
-                    content = txt_path.read_text(encoding="utf-8").strip()
-                    
-                    # (Tùy chọn) Chặn luôn nếu file .txt chứa chữ "None" hoặc bị trống rỗng
-                    if content == "" or content == "None":
-                        missing += 1
-                        continue
-                    
-                    if "caption" not in sv or sv["caption"] is None:
-                        sv["caption"] = {}
-                        
-                    # Tiến hành thêm vào vì chỗ này đang trống
-                    sv["caption"]["text"] = content
-                    merged += 1
-                    any_updated = True
-                else:
-                    missing += 1
+            if (sv.get("caption") or {}).get("text"):
+                continue
+            crop_fname = sv.get("filename", "")
+            if not crop_fname:
+                missing += 1
+                continue
+            txt_path = (crops_out_dir / doc_id / crop_fname).with_suffix(".txt")
+            if txt_path.exists():
+                sv["caption"]["text"] = txt_path.read_text(encoding="utf-8").strip()
+                merged += 1
+                any_updated = True
+            else:
+                missing += 1
         if any_updated:
             with open(pd_path, "w", encoding="utf-8") as f:
-                json.dump(pd, f, indent=4, ensure_ascii=False,)
+                json.dump(pd, f, indent=4)
     print(f"[adapter/mineru] merged {merged} image captions; {missing} crops still uncaptioned")
 
 def _create_subimage_folder(crops_out_dir, subimage_dir):
@@ -537,14 +445,6 @@ def _create_subimage_folder(crops_out_dir, subimage_dir):
     for img in crops_out_dir.rglob("*.jpg"):
         dest_dir = subimage_dir / img.name
         shutil.copy2(img, dest_dir)
-    return 
-
-def _create_subimage_summaries_folder(crops_out_dir, subimage_summaries_dir):
-    subimage_summaries_dir.mkdir(parents=True, exist_ok=True)
-
-    for text in crops_out_dir.rglob("*.txt"):
-        dest_dir = subimage_summaries_dir / text.name
-        shutil.copy2(text, dest_dir)
     return 
 
 def main():
@@ -564,9 +464,7 @@ def main():
     pd_out = Path(args.output)
     crops_out = Path(args.crops_out)
     subimage_dir = Path("artifacts/InfoVQA/image_components_sub/dev")
-    subimage_summaries_dir = Path("artifacts/InfoVQA/image_summaries_sub/dev")
 
-    # merge_subimage_captions(pd_out, crops_out)
     _add_dla_idx()
     crops = build_parsed_documents(layout_dir, images_dir, pd_out, crops_out)
 
@@ -585,22 +483,15 @@ def main():
         print("[adapter/mineru] no image blocks → no Qwen-VL pass needed")
 
     _create_subimage_folder(crops_out, subimage_dir)
-    _create_subimage_summaries_folder(crops_out, subimage_summaries_dir)
-
 
 if __name__ == "__main__":
     main()
-    # _create_subimage_folder()
 
-    # layout_dir = Path("artifacts/InfoVQA/mineru_outputs/dev")
+    # layout_dir = Path("/Users/mytnguyen/Documents/LILaC/artifacts/InfoVQA/mineru_outputs_pipeline/InfoVQA/mineru_outputs_pipeline/dev")
     # images_dir = Path("datasets/InfoVQA/image_components/dev")
     # pd_out = Path("datasets/InfoVQA/parsed_documents/dev")
     # crops_out = Path("artifacts/InfoVQA/crops_out/dev")
     # subimage_dir = Path("artifacts/InfoVQA/image_components_sub/dev")
     # subimage_summaries_dir = Path("artifacts/InfoVQA/image_summaries_sub/dev")
-
-
-    # _create_subimage_folder(crops_out, subimage_dir)
-    # _create_subimage_summaries_folder(crops_out, pd_out, subimage_summaries_dir)
 
     # crops = build_parsed_documents(layout_dir, images_dir, pd_out, crops_out)

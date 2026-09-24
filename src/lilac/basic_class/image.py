@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 import os
 import re
 import json
@@ -6,7 +6,6 @@ import json
 from src.lilac.basic_class.component import Component
 from src.utils.constants import EmbeddingMode
 from pathlib import Path
-from typing import Union
 
 
 class Image(Component):
@@ -31,6 +30,7 @@ class Image(Component):
     
     
     def serialize(self, mode):
+        
         serialized_image = self.document_title + " [SEP] " + self.get_serialized_hierarchy_path()
     
         representations = {
@@ -41,7 +41,7 @@ class Image(Component):
         }
     
         if "caption" in self.component_obj:
-            if "text" in self.component_obj["caption"] and self.component_obj["caption"]['text'] != "":
+            if "text" in self.component_obj["caption"]:
                 representations["caption"] = " [SEP] " + self.component_obj["caption"]["text"]
             
             if "ocr" in self.component_obj["caption"]:
@@ -83,7 +83,7 @@ class Image(Component):
         return embedding_obj
     
     
-    def _get_image_summary(self, image_filename: str) -> Union[str, None]:
+    def _get_image_summary(self, image_filename: str) -> str | None:
         """
         Given an image path (possibly nested), map it to the corresponding
         summary text file and return its contents, or *None* if not found.
@@ -167,56 +167,3 @@ class Image(Component):
             edges.append(edge_obj["edge"])
         
         return edges
-
-
-if __name__ == "__main__":
-    filename = "datasets/InfoVQA/parsed_documents/dev/10002.json"
-    with open(filename, 'r') as file:
-        parsed_document = json.load(file)
-
-    # print(parsed_document)
-    image_dir = "datasets/InfoVQA/image_components/dev"
-    summaries_dir = "artifacts/InfoVQA/image_summaries/dev"
-    sub_image_dir = "artifacts/InfoVQA/image_components_sub/dev"
-    subimage_summaries_dir = "artifacts/InfoVQA/image_components_sub/dev"
-
-    # for mode in [["image", "summary"]]:
-    #     doc_title = parsed_document["title"]
-    #     hierarchy_dict  = parsed_document["hierarchy"]
-    #     image_component_ids = parsed_document["image"]
-    #     for component_id in image_component_ids:
-    #         component = parsed_document["image"][component_id]
-    #         image_component = Image(filename, doc_title, hierarchy_dict, component_id, component,
-    #                                 images_dir = image_dir, image_summaries_dir = summaries_dir)
-    #         print(image_component.serialize(mode))
-        # image_serializations.append(image_component.serialize(mode))
-
-    subimage_serializations = []
-    for mode in [["image", "summary"]]:
-        doc_title = parsed_document["title"]
-        hierarchy_dict  = parsed_document["hierarchy"]
-        subimage_component_ids = parsed_document["subimage"]
-        for component_id in subimage_component_ids:
-            component = parsed_document["subimage"][component_id]
-            subimage_component = Image(filename, doc_title, hierarchy_dict, component_id, component,
-                                        images_dir = sub_image_dir, image_summaries_dir = subimage_summaries_dir)
-            subimage_serializations.append(subimage_component.serialize(mode))
-        print(subimage_serializations[1])
-    
-
-
-    # for mode in [["image", "summary"]]:
-    #     target_path = os.path.join(self._serializations_path, "image+" + "+".join(mode) + ".json")
-    #     if not os.path.exists(target_path):
-    #         image_serializations = []
-    #         for filename, parsed_document in tqdm(filename_to_parseddoc.items(), desc="Serializing image components"):
-    #             doc_title       = parsed_document["title"]
-    #             hierarchy_dict  = parsed_document["hierarchy"]
-    #             image_component_ids = parsed_document["image"]
-    #             for component_id in image_component_ids:
-    #                 component = parsed_document["image"][component_id]
-    #                 image_component = Image(filename, doc_title, hierarchy_dict, component_id, component,
-    #                                         images_dir = self._images_dir, image_summaries_dir = self._summaries_dir)
-    #                 image_serializations.append(image_component.serialize(mode))
-    #         write_json_file(image_serializations, target_path)
-

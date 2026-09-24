@@ -305,6 +305,14 @@ class Graph:
         with component IDs as keys and lists of edges as values.
         """
         return self.inter_document_edges
+
+    def get_intra_document_edges_dict(self):
+        """
+        Returns the inter-document edges as a dictionary.
+        The keys are the document filenames, and the values are dictionaries
+        with component IDs as keys and lists of edges as values.
+        """
+        return self.intra_document_edges
     
     def get_interdoc_edge_for_document(self, document_filename):
         if document_filename in self.inter_document_edges:

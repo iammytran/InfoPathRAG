@@ -5,22 +5,21 @@
 all: run_lilac
 
 install:
-# 	pip install hf
-# # 	conda create -n mmembed python=3.10 -y
-# # 	conda run -n mmembed pip install -r conda_environments/mmembed.txt
-# 	./models/download_embedders.sh           # MM-Embed, UniME, mmE5
-# 	git clone https://github.com/Dao-AILab/flash-attention.git
-# 	cd flash-attention && git checkout v2.2.0
-#	cd flash-attention && MAX_JOBS=4 python setup.py install
-# 	cd ..
-# 	
-# 	conda env create -f conda_environments/lilac-qwen.yaml
-# 	./models/download_generator.sh           # Qwen2.5-VL-7B + Qwen2.5-72B-Instruct
-# 	conda env update -f conda_environments/generate_summaries.yaml
-
+	pip install hf
+	export HF_TOKEN={YOUR_HF_TOKEN} && PYTHONPATH="$(CURDIR)" python src/utils/download_nv_embed.py && ./scripts/update_nv_embed_config.sh
+	conda create -n mmembed python=3.10 -y
+	conda run -n mmembed pip install -r conda_environments/mmembed.txt
+	./models/download_embedders.sh           # MM-Embed, UniME, mmE5
+	git clone https://github.com/Dao-AILab/flash-attention.git
+	cd flash-attention && git checkout v2.2.0
+	cd flash-attention && MAX_JOBS=4 python setup.py install
+	cd ..
+	
+	conda env update -f conda_environments/lilac-qwen.yaml
+	./models/download_generator.sh           # Qwen2.5-VL-7B + Qwen2.5-72B-Instruct
+	@bash -c 'eval "$$(conda shell.bash hook)" && conda env update -f conda_environments/generate_summaries.yaml'
 
 preprocessing:
-	@bash -c 'eval "$$(conda shell.bash hook)" && conda activate generate_summaries'
 	@bash -c 'eval "$$(conda shell.bash hook)" && conda activate generate_summaries && ./scripts/parse_multimodal_document/step0_summarize_images.sh -b "InfoVQA"'
 	export HF_XET_HIGH_PERFORMANCE=1
 	./models/download_layout_analyzers.sh --only mineru         # one-time (installs CLI + weights)
@@ -32,7 +31,8 @@ preprocessing:
     --num_gpus 4
 	
 decompose_query:
-	@bash -c 'eval "$$(conda shell.bash hook)" && conda activate lilac-qwen && PYTHONPATH="$(CURDIR)" ./scripts/query_decomposition/query_decomposer.sh && ./scripts/query_decomposition/modality_estimator.sh'
+	@bash -c 'eval "$$(conda shell.bash hook)" && conda activate generate_summaries && PYTHONPATH="$(CURDIR)" ./scripts/query_decomposition/query_decomposer.sh --target_data InfoVQA && ./scripts/query_decomposition/modality_estimator.sh --target_data InfoVQA'
+	PYTHONPATH="$(CURDIR)" python src/utils/check_missing_modality_for_subquery.py
 	
 embed: 
 	@echo "=== [1/3] Embedding InfoVQA ==="

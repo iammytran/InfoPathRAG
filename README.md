@@ -5,3 +5,6 @@ This section describes how to reproduce the LILaC baseline used in our experimen
 ```bash
   make
 ```
+
+### Hardware used when running
+4 GPUs RTX 3090

@@ -20,7 +20,6 @@ from src.utils.utils import REPO_ROOT, read_json_or_jsonl
 
 VARIANTS = ("flat_facts", "root_facts", "tile_facts", "root_tile_facts")
 DEFAULT_PATH_WEIGHTS = (1 / 3, 1 / 3, 1 / 3)
-TEST_QID = "36966.jpeg-1"
 LOGGER = logging.getLogger("infovqa_ablation")
 
 
@@ -156,7 +155,7 @@ def _log_row(qid, question, gold, result, variant, final_k, elapsed_ms):
     }
 
 
-def _summary(name, logs, weights=None, normalization="raw"):
+def _summary(name, logs, weights=None, normalization="raw", k_values=None):
     recall, mrr = _metrics(logs)
     num_labeled_queries = sum(
         row.get("infographic_correct") is not None for row in logs
@@ -174,6 +173,7 @@ def _summary(name, logs, weights=None, normalization="raw"):
         ) if logs else 0.0,
         "num_queries": len(logs), "num_labeled_queries": num_labeled_queries,
         "weights": list(weights) if weights else None,
+        "k": dict(k_values or {}),
         "normalization": normalization,
     }
 
@@ -236,7 +236,14 @@ def _paired_analysis(fact_logs, full_logs, output):
     return analysis
 
 
-def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANTS):
+def _run(
+    args,
+    weights=None,
+    retriever=None,
+    base_results=None,
+    variants=VARIANTS,
+    weights_by_variant=None,
+):
     from src.lilac.retriever.infovqa_retriever import InfoVQARetriever
 
     qas = read_json_or_jsonl(args.qa_path)
@@ -252,29 +259,35 @@ def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANT
         for qid in retriever._questions_manager.get_qid_list()
         if str(qid) in questions
     ]
-    requested_qid = TEST_QID
-    if requested_qid:
-        qids = [qid for qid in qids if str(qid) == requested_qid]
-        if not qids:
-            raise ValueError(
-                f"Query ID {requested_qid!r} was not found in the QA file "
-                "and loaded question embeddings."
-            )
-        LOGGER.info("Restricting retrieval to qid=%s", requested_qid)
+    if not qids:
+        raise ValueError(
+            "No InfoVQA query IDs were found in both the QA file and loaded "
+            "question embeddings."
+        )
+    LOGGER.info("Running retrieval for all matching InfoVQA queries total=%d", len(qids))
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
+    variant_final_k = {
+        variant: 50 if variant == "flat_facts" else args.final_k
+        for variant in variants
+    }
     if base_results is None:
         base_results = {}
         for variant in variants:
+            variant_weights = (
+                weights_by_variant.get(variant)
+                if weights_by_variant is not None
+                else weights
+            ) or (1.0, 0.0, 0.0)
             LOGGER.info("Starting retrieval variant=%s total=%d", variant, len(qids))
             for index, qid in enumerate(qids, start=1):
                 query_started = time.perf_counter()
                 question = retriever._questions_manager.get_question_instance_by_qid(qid)
                 base_results[(variant, str(qid))] = retriever.retrieve_infovqa_ablation(
                     str(qid), question.get_embedding(), variant, args.root_k,
-                    args.tile_k, args.final_k,
+                    args.tile_k, variant_final_k[variant],
                     path_reranking=args.path_reranking,
-                    path_weights=weights or (1.0, 0.0, 0.0),
+                    path_weights=variant_weights,
                     normalization=args.normalization,
                     missing_path_policy=args.missing_path_policy,
                 )
@@ -289,21 +302,28 @@ def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANT
     logs = {}
     all_rows = []
     for variant in variants:
+        variant_weights = (
+            weights_by_variant.get(variant)
+            if weights_by_variant is not None
+            else weights
+        ) or (1.0, 0.0, 0.0)
         rows = []
         LOGGER.info(
             "Starting reranking variant=%s weights=%s total=%d",
-            variant, weights, len(qids),
+            variant, variant_weights, len(qids),
         )
         for qid in qids:
             base = base_results[(variant, str(qid))]
             started = time.perf_counter()
             result = (
                 retriever.rerank_infovqa_paths(
-                    base, weights, args.normalization, args.missing_path_policy
+                    base, variant_weights, args.normalization,
+                    args.missing_path_policy
                 ) if variant == "root_tile_facts" and args.path_reranking else base
             )
             rows.append(_log_row(
-                qid, questions[str(qid)], gold, result, variant, args.final_k,
+                qid, questions[str(qid)], gold, result, variant,
+                variant_final_k[variant],
                 (time.perf_counter() - started) * 1000,
             ))
             if len(rows) == 1 or len(rows) % 25 == 0 or len(rows) == len(qids):
@@ -321,9 +341,25 @@ def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANT
         for row in all_rows:
             handle.write(json.dumps(row) + "\n")
     summaries = [
-        _summary(variant, rows, weights if variant == "root_tile_facts" and args.path_reranking else None,
-                 args.normalization)
+        _summary(
+            variant,
+            rows,
+            variant_weights if args.path_reranking else None,
+            args.normalization,
+            {
+                "root_k": args.root_k,
+                "tile_k": args.tile_k,
+                "final_k": variant_final_k[variant],
+            },
+        )
         for variant, rows in logs.items()
+        for variant_weights in [
+            (
+                weights_by_variant.get(variant)
+                if weights_by_variant is not None
+                else weights
+            ) or (1.0, 0.0, 0.0)
+        ]
     ]
     (output / "path_reranking_test_summary.json").write_text(
         json.dumps(summaries, indent=2)

@@ -487,7 +487,7 @@ class InfoVQARetriever(Retriever):
             ) if self._is_infographic_target(item["target"])
         ]
 
-        print(f"all_roots: {all_roots}")
+        # print(f"all_roots: {all_roots}")
         all_tiles = [
             (self._target_parts(item["target"]), float(item["score"]))
             for item in low_index.knn_search(
@@ -495,7 +495,7 @@ class InfoVQARetriever(Retriever):
                 top_k=tile_k,
             ) if self._is_tile_target(item["target"])
         ]
-        print(f"all_tiles: {all_tiles}")
+        # print(f"all_tiles: {all_tiles}")
         roots = all_roots
         tiles = all_tiles
         ranked_nodes = sorted(

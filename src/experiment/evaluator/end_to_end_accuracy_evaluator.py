@@ -281,8 +281,8 @@ if __name__ == "__main__":
     print("MMEmbed + InfoVQA")
     data_type                = BenchmarkType.VQA
     label_type               = None
-    qa_data_path             = "/workspace/LILaC/datasets/InfoVQA/QAs_test.json"
-    generation_result_path   = "/workspace/LILaC/algorithm_results/LILaC/InfoVQA/generation/mmembed_default/mmembed_default.jsonl"
+    qa_data_path             = "/workspace/InfoPathRAG/datasets/InfoVQA/QAs_test.json"
+    generation_result_path   = "/workspace/InfoPathRAG/algorithm_results/LILaC/InfoVQA/generation/mmembed_default/mmembed_default.jsonl"
     
     accuracy_dict = evaluate_end2end_accuracy(
         benchmark_type = data_type,

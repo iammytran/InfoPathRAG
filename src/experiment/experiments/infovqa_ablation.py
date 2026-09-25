@@ -20,6 +20,7 @@ from src.utils.utils import REPO_ROOT, read_json_or_jsonl
 
 VARIANTS = ("flat_facts", "root_facts", "tile_facts", "root_tile_facts")
 DEFAULT_PATH_WEIGHTS = (1 / 3, 1 / 3, 1 / 3)
+TEST_QID = "36966.jpeg-1"
 LOGGER = logging.getLogger("infovqa_ablation")
 
 
@@ -246,7 +247,20 @@ def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANT
             "--run_name", f"infovqa_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
             "--force_overwrite", "True",
         ])
-    qids = [qid for qid in retriever._questions_manager.get_qid_list() if str(qid) in questions]
+    qids = [
+        qid
+        for qid in retriever._questions_manager.get_qid_list()
+        if str(qid) in questions
+    ]
+    requested_qid = TEST_QID
+    if requested_qid:
+        qids = [qid for qid in qids if str(qid) == requested_qid]
+        if not qids:
+            raise ValueError(
+                f"Query ID {requested_qid!r} was not found in the QA file "
+                "and loaded question embeddings."
+            )
+        LOGGER.info("Restricting retrieval to qid=%s", requested_qid)
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     if base_results is None:
@@ -258,7 +272,11 @@ def _run(args, weights=None, retriever=None, base_results=None, variants=VARIANT
                 question = retriever._questions_manager.get_question_instance_by_qid(qid)
                 base_results[(variant, str(qid))] = retriever.retrieve_infovqa_ablation(
                     str(qid), question.get_embedding(), variant, args.root_k,
-                    args.tile_k, args.final_k
+                    args.tile_k, args.final_k,
+                    path_reranking=args.path_reranking,
+                    path_weights=weights or (1.0, 0.0, 0.0),
+                    normalization=args.normalization,
+                    missing_path_policy=args.missing_path_policy,
                 )
                 LOGGER.info(
                     "Retrieved variant=%s qid=%s progress=%d/%d elapsed_ms=%.1f",

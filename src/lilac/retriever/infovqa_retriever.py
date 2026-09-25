@@ -26,24 +26,47 @@ class InfoVQARetriever(Retriever):
             "embeddings_dirname",
             self._target_embedder,
         )
+        gpu_num = -1
+
+        root_paths = (
+            os.path.join(emb_dir, "image.pt"),
+            os.path.join(emb_dir, "image.json"),
+        )
+        tile_paths = (
+            os.path.join(emb_dir, "subimage.pt"),
+            os.path.join(emb_dir, "subimage.json"),
+        )
         fact_paths = [
             os.path.join(emb_dir, "tile_fact.pt"),
             os.path.join(emb_dir, "tile_fact.json"),
         ]
-        if not all(os.path.exists(path) for path in fact_paths):
+
+        missing_paths = [
+            path
+            for paths in (root_paths, tile_paths, fact_paths)
+            for path in paths
+            if not os.path.exists(path)
+        ]
+        if missing_paths:
             raise FileNotFoundError(
-                "InfoVQA fact embeddings are required: "
-                + ", ".join(fact_paths)
+                "InfoVQA ablation embeddings are required: "
+                + ", ".join(missing_paths)
             )
+
+        root_index = Indexer()
+        root_index.load_embeddings([root_paths], show_progress=True)
+        root_index.create_index(gpu_id=gpu_num)
+
+        tile_index = Indexer()
+        tile_index.load_embeddings([tile_paths], show_progress=True)
+        tile_index.create_index(gpu_id=gpu_num)
 
         fact_index = Indexer()
         fact_index.load_embeddings([tuple(fact_paths)], show_progress=True)
-        fact_index.create_index(
-            gpu_id=self._run_config["low_level_embeddings"].get("gpu_num", -1)
-        )
+        fact_index.create_index(gpu_id=gpu_num)
         self.info_level_to_indexer = {
-            "root": self.level_to_indexer["top"],
-            "tile": self.level_to_indexer["low"],
+            "root": root_index,
+            "tile": tile_index,
             "fact": fact_index,
         }
 
@@ -63,6 +86,7 @@ class InfoVQARetriever(Retriever):
                 self._infovqa_indexed_fact_targets,
             )
 
+        # mapping all the paths from fact's ancestors (root, tile) to that fact
         fact_to_parent = {}
         for filename, edges in self.graph.intra_document_edges.items():
             for parent_id, children in edges.items():
@@ -80,6 +104,7 @@ class InfoVQARetriever(Retriever):
                                 (parent, child_target)
                             )
 
+        # mapping the new fact index to the old index that used in tile_fact.json
         indexed_fact_targets = {}
         for indexed_target in (fact_index._idx2target or {}).values():
             normalized = self._target_parts(indexed_target)
@@ -93,6 +118,10 @@ class InfoVQARetriever(Retriever):
             f"{len(fact_to_parent):,} facts, {len(indexed_fact_targets):,} indexed facts",
             flush=True,
         )
+
+        # print(f"fact_to_parent: {fact_to_parent}")
+        # print(f"indexed_fact_targets: {indexed_fact_targets}")
+        # print(f"indexed_fact_targets: {indexed_fact_targets}")
         return fact_to_parent, indexed_fact_targets
         
         
@@ -196,6 +225,22 @@ class InfoVQARetriever(Retriever):
         missing_path_count = 0
         root_scores = root_scores or {}
         tile_scores = tile_scores or {}
+        required_roots = set(root_scores)
+        required_tiles = set(tile_scores)
+        for fact in facts:
+            for root, tile in fact_to_parent.get(fact, []):
+                required_roots.add(root)
+                required_tiles.add(tile)
+        root_scores.update(
+            self._score_index_targets(
+                self.info_level_to_indexer["root"], required_roots, query_vec
+            )
+        )
+        tile_scores.update(
+            self._score_index_targets(
+                self.info_level_to_indexer["tile"], required_tiles, query_vec
+            )
+        )
         alpha, beta, gamma = self._validate_path_weights(path_weights)
         if path_reranking and normalization != "raw":
             fact_values = [score for score in scores]
@@ -408,23 +453,51 @@ class InfoVQARetriever(Retriever):
         values = cls._normalize_values([scores[key] for key in keys], mode)
         return dict(zip(keys, values))
 
+    def _score_index_targets(self, indexer, targets, query_vec):
+        """Score only the indexed targets required by candidate paths."""
+        indexed_targets = {}
+        for target in (indexer._idx2target or {}).values():
+            normalized = self._target_parts(target)
+            indexed_targets[normalized] = tuple(target)
+
+        targets = [target for target in targets if target in indexed_targets]
+        if not targets:
+            return {}
+
+        original_targets = [indexed_targets[target] for target in targets]
+        rows = [
+            indexer.get_vector_idx_for_target(target)
+            for target in original_targets
+        ]
+        embeddings = indexer.get_embeddings().float()[rows]
+        query = query_vec.to(embeddings.device, dtype=embeddings.dtype)
+        scores = torch.nn.functional.cosine_similarity(
+            embeddings, query.unsqueeze(0), dim=1
+        ).tolist()
+        return dict(zip(targets, scores))
+
     def _infovqa_selection(self, query_vec, root_k, tile_k, k_ret):
         top_index = self.info_level_to_indexer["root"]
         low_index = self.info_level_to_indexer["tile"]
         all_roots = [
             (self._target_parts(item["target"]), float(item["score"]))
             for item in top_index.knn_search(
-                query_vec, top_k=top_index.get_embeddings().shape[0]
+                query_vec,
+                top_k=root_k,
             ) if self._is_infographic_target(item["target"])
         ]
+
+        print(f"all_roots: {all_roots}")
         all_tiles = [
             (self._target_parts(item["target"]), float(item["score"]))
             for item in low_index.knn_search(
-                query_vec, top_k=low_index.get_embeddings().shape[0]
+                query_vec,
+                top_k=tile_k,
             ) if self._is_tile_target(item["target"])
         ]
-        roots = all_roots[:root_k]
-        tiles = all_tiles[:tile_k]
+        print(f"all_tiles: {all_tiles}")
+        roots = all_roots
+        tiles = all_tiles
         ranked_nodes = sorted(
             dict(roots + tiles).items(), key=lambda item: item[1], reverse=True
         )[:k_ret]

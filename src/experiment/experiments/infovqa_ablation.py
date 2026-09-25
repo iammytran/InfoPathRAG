@@ -155,7 +155,10 @@ def _log_row(qid, question, gold, result, variant, final_k, elapsed_ms):
     }
 
 
-def _summary(name, logs, weights=None, normalization="raw", k_values=None):
+def _summary(
+    name, logs, weights=None, normalization="raw", k_values=None,
+    ranking_mode="score_fusion",
+):
     recall, mrr = _metrics(logs)
     num_labeled_queries = sum(
         row.get("infographic_correct") is not None for row in logs
@@ -175,6 +178,7 @@ def _summary(name, logs, weights=None, normalization="raw", k_values=None):
         "weights": list(weights) if weights else None,
         "k": dict(k_values or {}),
         "normalization": normalization,
+        "ranking_mode": ranking_mode,
     }
 
 
@@ -268,7 +272,7 @@ def _run(
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     variant_final_k = {
-        variant: 50 if variant == "flat_facts" else args.final_k
+        variant:70 if variant == "flat_facts" else args.final_k
         for variant in variants
     }
     if base_results is None:
@@ -286,7 +290,7 @@ def _run(
                 base_results[(variant, str(qid))] = retriever.retrieve_infovqa_ablation(
                     str(qid), question.get_embedding(), variant, args.root_k,
                     args.tile_k, variant_final_k[variant],
-                    path_reranking=args.path_reranking,
+                    path_reranking=args.path_reranking and not getattr(args, "tree_only", False),
                     path_weights=variant_weights,
                     normalization=args.normalization,
                     missing_path_policy=args.missing_path_policy,
@@ -316,6 +320,9 @@ def _run(
             base = base_results[(variant, str(qid))]
             started = time.perf_counter()
             result = (
+                retriever.rerank_infovqa_paths_tree_only(
+                    base, variant_final_k[variant]
+                ) if getattr(args, "tree_only", False) else
                 retriever.rerank_infovqa_paths(
                     base, variant_weights, args.normalization,
                     args.missing_path_policy
@@ -344,13 +351,14 @@ def _run(
         _summary(
             variant,
             rows,
-            variant_weights if args.path_reranking else None,
-            args.normalization,
+            variant_weights if args.path_reranking and not getattr(args, "tree_only", False) else None,
+            args.normalization if not getattr(args, "tree_only", False) else None,
             {
                 "root_k": args.root_k,
                 "tile_k": args.tile_k,
                 "final_k": variant_final_k[variant],
             },
+            "tree_only" if getattr(args, "tree_only", False) else "score_fusion",
         )
         for variant, rows in logs.items()
         for variant_weights in [

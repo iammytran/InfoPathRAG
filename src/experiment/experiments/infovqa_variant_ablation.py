@@ -69,6 +69,12 @@ def main():
         help="Enable path reranking. It is enabled for this study by default.",
     )
     parser.add_argument(
+        "--tree-only",
+        action="store_true",
+        help="Use candidate-tree filtering followed by fact top-k selection "
+             "without root/tile/fact score fusion.",
+    )
+    parser.add_argument(
         "--weights-file",
         help="JSON file containing a [fact, tile, root] 'weights' array.",
     )

@@ -328,8 +328,8 @@ class InfoVQARetriever(Retriever):
             ],
             "candidate_paths": [
                 option
-                for fact in sorted(path_options)
-                for option in path_options[fact]
+                for item in scored
+                for option in path_options[item["fact"]]
             ],
             "missing_path_count": missing_path_count,
             "time": {"retrieval_time(ms)": (time.perf_counter() - started) * 1000},
@@ -421,6 +421,46 @@ class InfoVQARetriever(Retriever):
         result["path_weights"] = [alpha, beta, gamma]
         result["normalization"] = normalization
         result["selected_paths"] = scored[:k_ret]
+        return result
+
+    def rerank_infovqa_paths_tree_only(self, retrieval_result, k_ret):
+        """Keep fact retrieval order and select top-k candidate facts.
+
+        The tree is used only to construct the candidate fact set. No
+        root/tile/fact score fusion is performed at this stage.
+        """
+        candidates = retrieval_result.get("candidate_paths", [])
+        if not candidates:
+            raise RuntimeError("Cached retrieval result has no candidate_paths.")
+
+        ordered = []
+        seen_facts = set()
+        for item in candidates:
+            fact = tuple(item["fact_id"])
+            if fact in seen_facts:
+                continue
+            seen_facts.add(fact)
+            row = dict(item)
+            row["final_score"] = None
+            ordered.append(row)
+        selected = ordered[:k_ret]
+        paths = [{
+            "nodes": [item["root_id"], item["tile_id"], item["fact_id"]],
+            "edges": [
+                [item["root_id"][1], item["tile_id"][1]],
+                [item["tile_id"][1], item["fact_id"][1]],
+            ],
+            "score": None,
+            "specific_scores": {},
+            "type": "path",
+        } for item in selected]
+        result = dict(retrieval_result)
+        result["retrieved_paths"] = paths
+        result["path_reranking"] = False
+        result["tree_only"] = True
+        result["path_weights"] = None
+        result["normalization"] = None
+        result["selected_paths"] = selected
         return result
 
     @staticmethod

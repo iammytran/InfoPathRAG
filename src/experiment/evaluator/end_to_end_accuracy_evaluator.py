@@ -52,6 +52,7 @@ class MMQABenchmarkEnd2EndAccuracyEvaluator(End2EndAccuracyEvaluator):
         
         em_acc = 0.0
         f1_acc = 0.0
+        anls_acc = 0.0
         
         for qid in qids:
             
@@ -63,14 +64,17 @@ class MMQABenchmarkEnd2EndAccuracyEvaluator(End2EndAccuracyEvaluator):
             
             em = list_em(predicted_answers, ground_truth_answers)
             f1, _, _ = list_f1(predicted_answers, ground_truth_answers)
+            anls = max_anls(predicted_answers, ground_truth_answers)
             
             em_acc += em
             f1_acc += f1
+            anls_acc += anls
             
         # ── final averaging ────────────────────────────────────────────   
         num_q = len(qids)
         self._accuracy_dict[EndToEndMetric.EM.value] = em_acc / num_q
         self._accuracy_dict[EndToEndMetric.F1.value] = f1_acc / num_q
+        self._accuracy_dict[EndToEndMetric.ANLS.value] = anls_acc / num_q
         
         return
 
@@ -120,6 +124,7 @@ class VQABenchmarkEnd2EndAccuracyEvaluator(End2EndAccuracyEvaluator):
 
         em_sum = 0.0
         f1_sum = 0.0
+        anls_sum = 0.0
 
         for qid in qids:
             # predicted answer (string) from generation file
@@ -146,13 +151,16 @@ class VQABenchmarkEnd2EndAccuracyEvaluator(End2EndAccuracyEvaluator):
                 f1_i, _, _ = list_f1(pred_answer, gold)
                 best_f1 = max(best_f1, f1_i)
             f1 = best_f1
+            anls = max_anls(pred_answer, gold_answers)
             
             f1_sum += f1
+            anls_sum += anls
 
         num_q = len(qids)
         # we mirror the keys used by the MMQA evaluator
         self._accuracy_dict[EndToEndMetric.EM.value] = em_sum / num_q
         self._accuracy_dict[EndToEndMetric.F1.value] = f1_sum / num_q
+        self._accuracy_dict[EndToEndMetric.ANLS.value] = anls_sum / num_q
         
         return
 
@@ -217,6 +225,52 @@ def remove_duplicates_preserve_order(lst):
 def preprocess_text(txt: str) -> str:
     txt = re.sub(r'\s+', ' ', str(txt)).strip().lower()
     return txt
+
+
+def _edit_distance(first: str, second: str) -> int:
+    """Return the Levenshtein distance between two strings."""
+    previous = list(range(len(second) + 1))
+    for first_index, first_char in enumerate(first, start=1):
+        current = [first_index]
+        for second_index, second_char in enumerate(second, start=1):
+            current.append(min(
+                current[-1] + 1,
+                previous[second_index] + 1,
+                previous[second_index - 1] + (first_char != second_char),
+            ))
+        previous = current
+    return previous[-1]
+
+
+def anls(predicted: str, gold: str, threshold: float = 0.5) -> float:
+    """Compute ANLS using normalized character-level Levenshtein distance."""
+    predicted_normalized = preprocess_text(predicted)
+    gold_normalized = preprocess_text(gold)
+
+    if not predicted_normalized and not gold_normalized:
+        return 1.0
+    if not predicted_normalized or not gold_normalized:
+        return 0.0
+
+    distance = _edit_distance(predicted_normalized, gold_normalized)
+    normalized_distance = distance / max(
+        len(predicted_normalized), len(gold_normalized)
+    )
+    return (
+        1.0 - normalized_distance
+        if normalized_distance < threshold
+        else 0.0
+    )
+
+
+def max_anls(predicted, gold_answers) -> float:
+    """Return the best ANLS score over one or more prediction/gold strings."""
+    predictions = predicted if isinstance(predicted, (list, tuple)) else [predicted]
+    golds = gold_answers if isinstance(gold_answers, (list, tuple)) else [gold_answers]
+    return max(
+        (anls(str(prediction), str(gold)) for prediction in predictions for gold in golds),
+        default=0.0,
+    )
 
 def is_numeric_data(txt: str) -> bool:
     try:

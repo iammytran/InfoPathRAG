@@ -76,6 +76,7 @@ class EndToEndMetric(Enum):
 class EndToEndMetric(Enum):
     F1 = "F1"
     EM = "EM"
+    ANLS = "ANLS"
     
     
 @unique
@@ -83,5 +84,4 @@ class EndToEndMetric(Enum):
 class ComponentIdIdx(Enum):
     DOC_ID = 0
     COMP_ID = 1
-
 

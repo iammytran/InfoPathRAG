@@ -17,3 +17,31 @@ The script uses equal fact/tile/root weights by default. Pass
 `path_reranking_test_summary.json`,
 `path_reranking_per_query.jsonl`, `path_reranking_paired_analysis.json`, and
 `path_score_distributions.json`.
+
+## Hyperparameter sensitivity
+
+Run the weight and top-k sensitivity study with both raw and query z-score
+path scores:
+
+```bash
+PYTHONPATH=. python3 -m src.experiment.experiments.infovqa_hyperparameter_sensitivity
+```
+
+To run the same configurations using raw scores only:
+
+```bash
+PYTHONPATH=. python3 -m src.experiment.experiments.infovqa_hyperparameter_sensitivity_raw
+```
+
+To run the same configurations using query z-score normalization only:
+
+```bash
+PYTHONPATH=. python3 -m src.experiment.experiments.infovqa_hyperparameter_sensitivity_zscore
+```
+
+The raw-only script writes to
+`algorithm_results/InfoPathRAG/InfoVQA/hyperparameter_sensitivity_raw` by
+default, while the z-score-only script writes to
+`algorithm_results/InfoPathRAG/InfoVQA/hyperparameter_sensitivity_zscore`.
+Sensitivity plots label each configuration with its actual
+`(fact, tile, root)` weights or `(root_k, tile_k, final_k)` top-k tuple.

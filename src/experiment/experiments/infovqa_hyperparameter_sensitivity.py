@@ -42,7 +42,7 @@ DEFAULT_TOP_KS = {
 NORMALIZATIONS = ("raw", "query_zscore")
 
 
-def _parser() -> argparse.ArgumentParser:
+def _parser(output_dir: str | None = None) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--mode", choices=("weights", "topk", "both"), default="both"
@@ -53,7 +53,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-dir",
-        default=os.path.join(
+        default=output_dir or os.path.join(
             REPO_ROOT,
             "algorithm_results",
             "InfoPathRAG",
@@ -146,38 +146,57 @@ def _run_one(
     return summary, base_results
 
 
-def _plot_results(results: list[dict], output_dir: Path, experiment: str) -> None:
+def _configuration_label(row: dict, experiment: str) -> str:
+    return row["configuration"]
+
+
+def _plot_results(
+    results: list[dict],
+    output_dir: Path,
+    experiment: str,
+    normalizations: tuple[str, ...] = NORMALIZATIONS,
+) -> None:
     import matplotlib.pyplot as plt
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    for metric in ("Recall@3", "MRR@10"):
-        fig, ax = plt.subplots(figsize=(10, 5))
-        for normalization in NORMALIZATIONS:
+    metrics = ("Recall@3", "MRR@10")
+    fig, axes = plt.subplots(1, 2, figsize=(16, 5), sharey=True)
+    for ax, metric in zip(axes, metrics):
+        for normalization in normalizations:
             rows = [
                 row for row in results
                 if row["normalization"] == normalization
             ]
             rows.sort(key=lambda row: row["configuration"])
-            labels = [row["configuration"] for row in rows]
+            labels = [_configuration_label(row, experiment) for row in rows]
             values = [row[metric] for row in rows]
             ax.plot(labels, values, marker="o", label=normalization)
-        ax.set_title(f"InfoPathRAG InfoVQA {experiment}: {metric}")
+        ax.set_title(metric)
         ax.set_ylabel(metric)
         ax.set_xlabel("Configuration")
         ax.grid(axis="y", alpha=0.3)
-        ax.legend()
-        fig.tight_layout()
-        fig.savefig(output_dir / f"{experiment.lower()}_{metric.replace('@', '_at_').replace('/', '_')}.png", dpi=200)
-        plt.close(fig)
+        ax.tick_params(axis="x", rotation=35)
+    axes[0].legend()
+    fig.suptitle(f"InfoPathRAG InfoVQA {experiment}")
+    fig.tight_layout()
+    fig.savefig(
+        output_dir / f"{experiment.lower()}_metrics.png",
+        dpi=200,
+        bbox_inches="tight",
+    )
+    plt.close(fig)
 
 
 def _write_index(results: list[dict], path: Path) -> None:
     path.write_text(json.dumps(results, indent=2), encoding="utf-8")
 
 
-def main() -> None:
+def main(
+    normalizations: tuple[str, ...] = NORMALIZATIONS,
+    default_output_dir: str | None = None,
+) -> None:
     _configure_logging()
-    base_args = _parser().parse_args()
+    base_args = _parser(default_output_dir).parse_args()
     root_output = Path(base_args.output_dir)
     root_output.mkdir(parents=True, exist_ok=True)
     all_results: dict[str, list[dict]] = {}
@@ -187,7 +206,7 @@ def main() -> None:
         retriever = _make_retriever(base_args.root_k, base_args.tile_k, base_args.final_k)
         base_results = None
         for name, weights in DEFAULT_WEIGHTS.items():
-            for normalization in NORMALIZATIONS:
+            for normalization in normalizations:
                 summary, base_results = _run_one(
                     base_args,
                     root_output / "weights" / normalization,
@@ -204,14 +223,14 @@ def main() -> None:
         _write_index(results, root_output / "weights" / "summary.json")
         all_results["weights"] = results
         if not base_args.skip_plots:
-            _plot_results(results, root_output / "weights", "weights")
+            _plot_results(results, root_output / "weights", "weights", normalizations)
 
     if base_args.mode in ("topk", "both"):
         results = []
         for name, (root_k, tile_k, final_k) in DEFAULT_TOP_KS.items():
             retriever = _make_retriever(root_k, tile_k, final_k)
             base_results = None
-            for normalization in NORMALIZATIONS:
+            for normalization in normalizations:
                 summary, base_results = _run_one(
                     base_args,
                     root_output / "topk" / normalization,
@@ -228,7 +247,7 @@ def main() -> None:
         _write_index(results, root_output / "topk" / "summary.json")
         all_results["topk"] = results
         if not base_args.skip_plots:
-            _plot_results(results, root_output / "topk", "topk")
+            _plot_results(results, root_output / "topk", "topk", normalizations)
 
     (root_output / "summary.json").write_text(
         json.dumps(all_results, indent=2), encoding="utf-8"

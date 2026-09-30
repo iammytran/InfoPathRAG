@@ -86,6 +86,25 @@ def _metrics(logs):
     return recall, sum(rr) / len(rr)
 
 
+def _metrics_at_k(logs, recall_k=1, mrr_k=3):
+    labeled = [row for row in logs if row.get("infographic_correct") is not None]
+    if not labeled:
+        return 0.0, 0.0
+
+    recall = sum(
+        row["infographic_correct"] in row["retrieved_infographics"][:recall_k]
+        for row in labeled
+    ) / len(labeled)
+    reciprocal_ranks = []
+    for row in labeled:
+        docs = row["retrieved_infographics"][:mrr_k]
+        gold = row["infographic_correct"]
+        reciprocal_ranks.append(
+            1 / (docs.index(gold) + 1) if gold in docs else 0.0
+        )
+    return recall, sum(reciprocal_ranks) / len(reciprocal_ranks)
+
+
 def _score_distribution(rows):
     values = [float(value) for value in rows if value is not None]
     if not values:
@@ -160,11 +179,13 @@ def _summary(
     ranking_mode="score_fusion",
 ):
     recall, mrr = _metrics(logs)
+    recall_at_1, mrr_at_3 = _metrics_at_k(logs)
     num_labeled_queries = sum(
         row.get("infographic_correct") is not None for row in logs
     )
     return {
         "variant": name, "Recall@3": recall, "MRR@10": mrr,
+        "Recall@1": recall_at_1, "MRR@3": mrr_at_3,
         "avg_candidate_facts": statistics.mean(
             row["num_candidate_facts"] for row in logs
         ) if logs else 0.0,

@@ -159,7 +159,7 @@ def _plot_results(
     import matplotlib.pyplot as plt
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    metrics = ("Recall@3", "MRR@10")
+    metrics = ("Recall@1", "MRR@3")
     fig, axes = plt.subplots(1, 2, figsize=(16, 5), sharey=True)
     for ax, metric in zip(axes, metrics):
         for normalization in normalizations:
@@ -181,6 +181,50 @@ def _plot_results(
     fig.tight_layout()
     fig.savefig(
         output_dir / f"{experiment.lower()}_metrics.png",
+        dpi=200,
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+
+
+def _plot_combined_results(
+    results_by_experiment: dict[str, list[dict]],
+    output_dir: Path,
+    normalizations: tuple[str, ...],
+) -> None:
+    import matplotlib.pyplot as plt
+
+    metrics = ("Recall@1", "MRR@3")
+    fig, axes = plt.subplots(1, 2, figsize=(18, 6), sharey=True)
+    for ax, experiment in zip(axes, ("topk", "weights")):
+        results = results_by_experiment[experiment]
+        for normalization in normalizations:
+            rows = sorted(
+                (
+                    row for row in results
+                    if row["normalization"] == normalization
+                ),
+                key=lambda row: row["configuration"],
+            )
+            labels = [_configuration_label(row, experiment) for row in rows]
+            for metric in metrics:
+                ax.plot(
+                    labels,
+                    [row[metric] for row in rows],
+                    marker="o",
+                    label=f"{metric} ({normalization})",
+                )
+        ax.set_title(experiment.upper())
+        ax.set_xlabel("Configuration")
+        ax.grid(axis="y", alpha=0.3)
+        ax.tick_params(axis="x", rotation=35)
+    axes[0].set_ylabel("Score")
+    axes[1].legend()
+    fig.suptitle("InfoPathRAG InfoVQA hyperparameter sensitivity")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(
+        output_dir / "hyperparameter_sensitivity_metrics.png",
         dpi=200,
         bbox_inches="tight",
     )
@@ -248,6 +292,13 @@ def main(
         all_results["topk"] = results
         if not base_args.skip_plots:
             _plot_results(results, root_output / "topk", "topk", normalizations)
+
+    if (
+        base_args.mode == "both"
+        and not base_args.skip_plots
+        and set(all_results) == {"topk", "weights"}
+    ):
+        _plot_combined_results(all_results, root_output, normalizations)
 
     (root_output / "summary.json").write_text(
         json.dumps(all_results, indent=2), encoding="utf-8"

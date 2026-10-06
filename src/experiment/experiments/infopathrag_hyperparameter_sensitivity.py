@@ -16,8 +16,8 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
-from src.experiment.experiments.infovqa_ablation import _configure_logging, _run
-from src.lilac.retriever.infovqa_retriever import InfoVQARetriever
+from src.experiment.experiments.infopathrag_ablation import _configure_logging, _run
+from src.lilac.retriever.my_retriever import MyRetriever
 from src.utils.utils import REPO_ROOT
 
 
@@ -94,12 +94,12 @@ def _make_args(base: argparse.Namespace, output_dir: Path, root_k: int, tile_k: 
     return args
 
 
-def _make_retriever(root_k: int, tile_k: int, final_k: int) -> InfoVQARetriever:
-    return InfoVQARetriever(
+def _make_retriever(root_k: int, tile_k: int, final_k: int) -> MyRetriever:
+    return MyRetriever(
         cli_args=[
-            "--run_mode", "infovqa_ablation",
+            "--run_mode", "infopathrag",
             "--target_dataset", "InfoVQA",
-            "--run_name", f"infovqa_sensitivity_root{root_k}_tile{tile_k}_final{final_k}",
+            "--run_name", f"infopathrag_sensitivity_root{root_k}_tile{tile_k}_final{final_k}",
             "--force_overwrite", "True",
         ]
     )
@@ -114,7 +114,7 @@ def _run_one(
     root_k: int,
     tile_k: int,
     final_k: int,
-    retriever: InfoVQARetriever,
+    retriever: MyRetriever,
     base_results: dict | None,
 ) -> tuple[dict, dict | None]:
     _validate_weights(weights)

@@ -1,12 +1,12 @@
 """Run InfoVQA hyperparameter sensitivity using raw path scores only.
 
 This keeps the same weight and top-k configurations as
-``infovqa_hyperparameter_sensitivity`` but skips query z-score reranking.
+``infopathrag_hyperparameter_sensitivity`` but skips query z-score reranking.
 """
 
 from __future__ import annotations
 
-from src.experiment.experiments.infovqa_hyperparameter_sensitivity import (
+from src.experiment.experiments.infopathrag_hyperparameter_sensitivity import (
     main as run_sensitivity,
 )
 from src.utils.utils import REPO_ROOT

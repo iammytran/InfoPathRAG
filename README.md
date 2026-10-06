@@ -2,6 +2,26 @@
 
 InfoPathRAG explores retrieval from infographic documents. This repository includes the LILaC baseline used in our experiments.
 
+## Run InfoPathRAG
+1. Processing images to tiles + serialize & embed image/tiles
+python -m src.lilac.lcg_constructor.estimate_components
+python /Users/mytnguyen/Documents/InfoPathRAG/src/lilac/lcg_constructor/tile_infographics.py
+
+2. Embed query
+./scripts/query_decomposition/query_decomposer.sh                           
+./scripts/query_decomposition/modality_estimator.sh                 
+./scripts/query_decomposition/queryset_embedder.sh --embedder mmembed 
+
+3. Retrieve
+
+
+4. Generation
+
+
+4. Hyperparameter sensitivity
+
+
+
 ## LILaC baseline
 
 The baseline code is forked from the [original LILaC repository](https://github.com/joohyung00/lilac).

@@ -1,4 +1,4 @@
-# InfoVQA Path-Aware Reranking
+# InfoPathRAG Path-Aware Reranking
 
 The default MEHR candidate selection is unchanged. Path-aware reranking is
 opt-in and reranks the cached MEHR candidate facts with
@@ -7,15 +7,16 @@ opt-in and reranks the cached MEHR candidate facts with
 Run the test ablation on `QAs_test.json`:
 
 ```bash
-PYTHONPATH=. python3 -m src.experiment.experiments.infovqa_ablation \
+PYTHONPATH=. python3 -m src.experiment.experiments.infopathrag_ablation \
+  --ablation-type reranking \
   --root-k 100 --tile-k 100 --final-k 10 \
-  --normalization raw --path-reranking
+  --normalization raw
 ```
 
 The script uses equal fact/tile/root weights by default. Pass
 `--weights-file` to use a different full-path weight configuration. It writes
 `path_reranking_test_summary.json`,
-`path_reranking_per_query.jsonl`, `path_reranking_paired_analysis.json`, and
+`path_reranking_per_query.jsonl`, and
 `path_score_distributions.json`.
 
 ## Hyperparameter sensitivity
@@ -24,7 +25,7 @@ Run the weight and top-k sensitivity study with both raw and query z-score
 path scores:
 
 ```bash
-PYTHONPATH=. python3 -m src.experiment.experiments.infovqa_hyperparameter_sensitivity
+PYTHONPATH=. python3 -m src.experiment.experiments.infopathrag_hyperparameter_sensitivity
 ```
 
 To run the same configurations using raw scores only:

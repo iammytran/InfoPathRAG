@@ -1,4 +1,4 @@
-"""InfoVQA MEHR candidate ablation and path-aware reranking study.
+"""InfoPathRAG candidate ablation and path-aware reranking study.
 
 The retriever creates each candidate set once. Weight search only reranks the
 cached MEHR paths, so every weight tuple sees exactly the same candidates.
@@ -20,11 +20,11 @@ from src.utils.utils import REPO_ROOT, read_json_or_jsonl
 
 VARIANTS = ("flat_facts", "root_facts", "tile_facts", "root_tile_facts")
 DEFAULT_PATH_WEIGHTS = (1 / 3, 1 / 3, 1 / 3)
-LOGGER = logging.getLogger("infovqa_ablation")
+LOGGER = logging.getLogger("infopathrag_ablation")
 
 
 def _configure_logging():
-    log_path = Path(REPO_ROOT) / "debug" / "infovqa_ablation.log"
+    log_path = Path(REPO_ROOT) / "debug" / "infopathrag_ablation.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     LOGGER.setLevel(logging.INFO)
     LOGGER.handlers.clear()
@@ -149,7 +149,7 @@ def _docs(result):
     return docs
 
 
-def _log_row(qid, question, gold, result, variant, final_k, elapsed_ms):
+def _log_row(qid, question, gold, result, variant, elapsed_ms):
     docs = _docs(result)
     roots = {_doc(root[0]) for root in result.get("candidate_roots", [])}
     tiles = {_doc(tile[0]) for tile in result.get("candidate_tiles", [])}
@@ -203,64 +203,6 @@ def _summary(
     }
 
 
-def _paired_analysis(fact_logs, full_logs, output):
-    fact = {row["qid"]: row for row in fact_logs}
-    full = {row["qid"]: row for row in full_logs}
-    pairs = [
-        (fact[qid]["correct"], full[qid]["correct"])
-        for qid in sorted(fact.keys() & full.keys())
-    ]
-    both = sum(a and b for a, b in pairs)
-    neither = sum(not a and not b for a, b in pairs)
-    full_only = sum(not a and b for a, b in pairs)
-    fact_only = sum(a and not b for a, b in pairs)
-    discordant = full_only + fact_only
-    mcnemar_p = 1.0 if discordant == 0 else min(
-        1.0, 2 * sum(
-            math.comb(discordant, i) for i in range(0, min(full_only, fact_only) + 1)
-        ) / (2 ** discordant)
-    )
-    deltas = []
-    rescued, harmed = [], []
-    for qid in sorted(fact.keys() & full.keys()):
-        fact_row, full_row = fact[qid], full[qid]
-        def reciprocal(row):
-            rank = row.get("correct_infographic_rank")
-            return 1 / rank if rank and rank <= 10 else 0.0
-        delta = reciprocal(full_row) - reciprocal(fact_row)
-        deltas.append(delta)
-        if not fact_row["correct"] and full_row["correct"]:
-            rescued.append(full_row)
-        if fact_row["correct"] and not full_row["correct"]:
-            harmed.append(full_row)
-    bootstrap = []
-    seed = 1729
-    for _ in range(2000):
-        seed = (1103515245 * seed + 12345) % (2 ** 31)
-        sample = [
-            deltas[(seed + index * 7919) % len(deltas)]
-            for index in range(len(deltas))
-        ] if deltas else [0.0]
-        bootstrap.append(sum(sample) / len(sample))
-    bootstrap.sort()
-    analysis = {
-        "both_correct": both, "both_wrong": neither,
-        "full_path_correct_fact_only_wrong": full_only,
-        "fact_only_correct_full_path_wrong": fact_only,
-        "mcnemar_exact_two_sided_p": mcnemar_p,
-        "mrr_delta_mean": statistics.mean(deltas) if deltas else 0.0,
-        "mrr_delta_bootstrap_95ci": [
-            bootstrap[int(0.025 * (len(bootstrap) - 1))],
-            bootstrap[int(0.975 * (len(bootstrap) - 1))],
-        ],
-        "rescued_queries": rescued, "harmed_queries": harmed,
-    }
-    (output / "path_reranking_paired_analysis.json").write_text(
-        json.dumps(analysis, indent=2)
-    )
-    return analysis
-
-
 def _run(
     args,
     weights=None,
@@ -269,14 +211,14 @@ def _run(
     variants=VARIANTS,
     weights_by_variant=None,
 ):
-    from src.lilac.retriever.infovqa_retriever import InfoVQARetriever
+    from src.lilac.retriever.my_retriever import MyRetriever
 
     qas = read_json_or_jsonl(args.qa_path)
     gold, questions = _gold(qas), _query_text(qas)
     if retriever is None:
-        retriever = InfoVQARetriever(cli_args=[
-            "--run_mode", "infovqa_ablation", "--target_dataset", "InfoVQA",
-            "--run_name", f"infovqa_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
+        retriever = MyRetriever(cli_args=[
+            "--run_mode", "infopathrag", "--target_dataset", "InfoVQA",
+            "--run_name", f"infopathrag_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
             "--force_overwrite", "True",
         ])
     qids = [
@@ -308,10 +250,23 @@ def _run(
             for index, qid in enumerate(qids, start=1):
                 query_started = time.perf_counter()
                 question = retriever._questions_manager.get_question_instance_by_qid(qid)
-                base_results[(variant, str(qid))] = retriever.retrieve_infovqa_ablation(
-                    str(qid), question.get_embedding(), variant, args.root_k,
-                    args.tile_k, variant_final_k[variant],
-                    path_reranking=args.path_reranking and not getattr(args, "tree_only", False),
+                candidate_strategy = {
+                    "flat_facts": "flat",
+                    "root_facts": "root",
+                    "tile_facts": "tile",
+                    "root_tile_facts": "root_tile",
+                }[variant]
+                base_results[(variant, str(qid))] = retriever.retrieve_infopathrag(
+                    qid=str(qid), query_vec=question.get_embedding(),
+                    candidate_strategy=candidate_strategy,
+                    ranking_strategy=(
+                        getattr(args, "ranking_strategy", "full_path")
+                        if args.path_reranking and not getattr(args, "tree_only", False)
+                        else "fact_only"
+                    ),
+                    root_k=args.root_k, tile_k=args.tile_k,
+                    top_entry_k=getattr(args, "top_entry_k", 70),
+                    top_fact_k=variant_final_k[variant],
                     path_weights=variant_weights,
                     normalization=args.normalization,
                     missing_path_policy=args.missing_path_policy,
@@ -351,7 +306,6 @@ def _run(
             )
             rows.append(_log_row(
                 qid, questions[str(qid)], gold, result, variant,
-                variant_final_k[variant],
                 (time.perf_counter() - started) * 1000,
             ))
             if len(rows) == 1 or len(rows) % 25 == 0 or len(rows) == len(qids):
@@ -401,7 +355,16 @@ def _run(
 
 def main():
     log_path = _configure_logging()
-    parser = argparse.ArgumentParser(description="InfoVQA MEHR path-aware ablation")
+    parser = argparse.ArgumentParser(description="InfoPathRAG ablation experiments")
+    parser.add_argument(
+        "--ablation-type",
+        choices=("candidate", "reranking"),
+        default="candidate",
+        help=(
+            "candidate compares candidate strategies with fact-only ranking; "
+            "reranking fixes root_tile candidates and compares ranking strategies."
+        ),
+    )
     parser.add_argument(
         "--qa-path", default=os.path.join(REPO_ROOT, "datasets", "InfoVQA", "QAs_test.json")
     )
@@ -410,85 +373,82 @@ def main():
     ))
     parser.add_argument("--root-k", type=int, default=100)
     parser.add_argument("--tile-k", type=int, default=100)
+    parser.add_argument("--top-entry-k", type=int, default=70)
     parser.add_argument("--final-k", type=int, default=10)
     parser.add_argument("--normalization", choices=("raw", "query_zscore"), default="raw")
     parser.add_argument("--missing-path-policy", choices=("error", "skip"), default="error")
-    parser.add_argument("--path-reranking", action="store_true")
-    parser.add_argument(
-        "--root-tile-only",
-        action="store_true",
-        help="Only retrieve and evaluate root_tile_facts with the supplied weights.",
-    )
     parser.add_argument(
         "--weights-file",
         help="Optional JSON file containing the full-path weights; "
              "defaults to equal fact/tile/root weights.",
     )
     args = parser.parse_args()
-    LOGGER.info("Starting InfoVQA ablation qa_path=%s log=%s", args.qa_path, log_path)
+    LOGGER.info(
+        "Starting InfoPathRAG %s ablation qa_path=%s log=%s",
+        args.ablation_type, args.qa_path, log_path,
+    )
     output = Path(args.output_dir)
     weights_data = (
         json.loads(Path(args.weights_file).read_text())
-        if args.weights_file else {"weights": DEFAULT_PATH_WEIGHTS}
+        if args.weights_file else {}
     )
-    args.path_reranking = True
-    variants = ("root_tile_facts",) if args.root_tile_only else VARIANTS
     args.normalization = weights_data.get("normalization", args.normalization)
-    requested = (
-        {
-            "MEHR + fact-only": (1.0, 0.0, 0.0),
-            "MEHR + full-path": tuple(weights_data["weights"]),
-        }
-        if args.root_tile_only else
-        {
-            "MEHR + fact-only": (1.0, 0.0, 0.0),
-            "MEHR + fact+tile": (0.8, 0.2, 0.0),
-            "MEHR + fact+root": (0.8, 0.0, 0.2),
-            "MEHR + full-path": tuple(weights_data["weights"]),
-        }
-    )
-    from src.lilac.retriever.infovqa_retriever import InfoVQARetriever
-    retriever = InfoVQARetriever(cli_args=[
-        "--run_mode", "infovqa_ablation", "--target_dataset", "InfoVQA",
-        "--run_name", f"infovqa_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
+    from src.lilac.retriever.my_retriever import MyRetriever
+    retriever = MyRetriever(cli_args=[
+        "--run_mode", "infopathrag", "--target_dataset", "InfoVQA",
+        "--run_name", f"infopathrag_path_test_root{args.root_k}_tile{args.tile_k}_final{args.final_k}",
         "--force_overwrite", "True",
     ])
     LOGGER.info("Retriever initialized; beginning cached retrieval")
+    if args.ablation_type == "candidate":
+        args.path_reranking = False
+        args.ranking_strategy = "fact_only"
+        summaries, _, _ = _run(
+            args,
+            weights=(1.0, 0.0, 0.0),
+            retriever=retriever,
+            variants=VARIANTS,
+        )
+        (output / "path_reranking_test_summary.json").write_text(
+            json.dumps(summaries, indent=2)
+        )
+        print(json.dumps({"ablation_type": "candidate", "summaries": summaries}, indent=2))
+        return
+
+    args.path_reranking = True
+    ranking_configs = {
+        "fact_only": ("fact_only", (1.0, 0.0, 0.0)),
+        "fact_tile": ("fact_tile", (0.8, 0.2, 0.0)),
+        "fact_root": ("fact_root", (0.8, 0.0, 0.2)),
+        "full_path": (
+            "full_path",
+            tuple(weights_data.get("weights", DEFAULT_PATH_WEIGHTS)),
+        ),
+    }
     base_results = None
     run_data = {}
-    for name, weights in requested.items():
+    for name, (_, weights) in ranking_configs.items():
+        args.ranking_strategy = ranking_configs[name][0]
         summaries, logs, base_results = _run(
-            args, weights, retriever=retriever, base_results=base_results,
-            variants=variants,
+            args,
+            weights,
+            retriever=retriever,
+            base_results=base_results,
+            variants=("root_tile_facts",),
         )
-        root_summary = next(
-            item for item in summaries if item["variant"] == "root_tile_facts"
-        )
-        root_summary["variant"] = name
-        root_summary["weights"] = list(weights)
-        run_data[name] = (root_summary, logs["root_tile_facts"])
-    if args.root_tile_only:
-        final_summaries = [
-            run_data["MEHR + fact-only"][0],
-            run_data["MEHR + full-path"][0],
-        ]
-    else:
-        flat_summary = next(
-            item for item in summaries if item["variant"] == "flat_facts"
-        )
-        final_summaries = [flat_summary] + [
-            run_data[name][0] for name in requested
-        ]
+        summary = summaries[0]
+        summary["variant"] = name
+        summary["ranking_strategy"] = name
+        summary["weights"] = list(weights)
+        run_data[name] = (summary, logs["root_tile_facts"])
     (output / "path_reranking_test_summary.json").write_text(
-        json.dumps(final_summaries, indent=2)
+        json.dumps([summary for summary, _ in run_data.values()], indent=2)
     )
-    analysis = _paired_analysis(
-        run_data["MEHR + fact-only"][1],
-        run_data["MEHR + full-path"][1],
-        output,
-    )
-    print(json.dumps({"summaries": final_summaries, "paired_analysis": analysis}, indent=2))
-    LOGGER.info("Completed InfoVQA ablation output_dir=%s", output)
+    print(json.dumps({
+        "ablation_type": "reranking",
+        "summaries": [summary for summary, _ in run_data.values()],
+    }, indent=2))
+    LOGGER.info("Completed InfoPathRAG ablation output_dir=%s", output)
 
 
 if __name__ == "__main__":

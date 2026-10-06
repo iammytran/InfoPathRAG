@@ -85,12 +85,12 @@ class Retriever:
             params["top_k"] = args.parameter_topk
         default_config["parameters"] = params
         
-        # if args.lowlevel_text is not None:
-        #     default_config["low_level_embeddings"]["text"] = args.lowlevel_text
-        # if args.lowlevel_table is not None:
-        #     default_config["low_level_embeddings"]["table"] = args.lowlevel_table
-        # if args.lowlevel_image is not None:
-        #     default_config["low_level_embeddings"]["image"] = args.lowlevel_image
+        if args.lowlevel_text is not None:
+            default_config["low_level_embeddings"]["text"] = args.lowlevel_text
+        if args.lowlevel_table is not None:
+            default_config["low_level_embeddings"]["table"] = args.lowlevel_table
+        if args.lowlevel_image is not None:
+            default_config["low_level_embeddings"]["image"] = args.lowlevel_image
         
         # 4) If run_name is still missing, auto-generate it
         #    using the logic specified.
@@ -116,7 +116,8 @@ class Retriever:
         
         # Current run
         self._run_name              = self._run_config["run_name"]
-        self._output_dir            = os.path.join(self._root_path, self._metadata_config["subpath"]["algorithm_results"], self._metadata_config["algorithm_name"], self._target_dataset, "retrieval", self._run_config["run_name"])
+        algorithm_name = self._output_algorithm_name()
+        self._output_dir            = os.path.join(self._root_path, self._metadata_config["subpath"]["algorithm_results"], algorithm_name, self._target_dataset, "retrieval", self._run_config["run_name"])
         ensure_output_dir(self._output_dir, force_overwrite = self._run_config["force_overwrite"])
         
         self._run_function_mode     = self._run_config["run_mode"]
@@ -140,6 +141,9 @@ class Retriever:
             self._subindexer_low = None
                 
         return
+
+    def _output_algorithm_name(self) -> str:
+        return self._metadata_config["algorithm_name"]
         
         
 
@@ -305,6 +309,9 @@ class Retriever:
                 self._beam_width = self._run_config["parameters"]["beam_width"]
                 self._num_iterations = self._run_config["parameters"]["num_iterations"]
                 self.retrieve_iterative_late_interaction(qid, question_embedding, subquery_embeddings)
+
+            elif self._run_function_mode == "infopathrag":
+                self._retrieve_for_run(qid, question_embedding, subquery_embeddings)
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
@@ -1132,10 +1139,10 @@ def parse_arguments(argv=None) -> argparse.Namespace:
             "decomposed_topdown",
             "late_interaction",
             "iterative_late_interaction",
-            "infovqa_ablation",
+            "infopathrag",
         ],
         default=None,
-        help="One of single_knn, single_topdown, decomposed_topdown, late_interaction."
+        help="One of single_knn, single_topdown, decomposed_topdown, late_interaction, infopathrag."
     )
     parser.add_argument(
         "--target_dataset",

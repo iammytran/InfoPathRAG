@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 
@@ -7,10 +6,11 @@ import torch
 from src.lilac.retriever.indexer import Indexer
 from src.utils.utils import append_to_jsonl_file, artifact_subpath
 from .retriever import RUN_CONFIG_PATH, Retriever
+class MyRetriever(Retriever):
+    """Retriever for hierarchical infographic root/tile/fact paths."""
 
-
-class InfoVQARetriever(Retriever):
-    """Retriever with InfoVQA-specific candidate and path retrieval methods."""
+    def _output_algorithm_name(self) -> str:
+        return "InfoPathRAG"
 
     def __init__(self, config_path: str = RUN_CONFIG_PATH, cli_args=None):
         self._infovqa_fact_to_parent = None
@@ -19,7 +19,7 @@ class InfoVQARetriever(Retriever):
         self._init_infovqa_indexers()
 
     def _init_infovqa_indexers(self):
-        """Prepare indexes used only by the InfoVQA ablation."""
+        """Prepare root, tile, and fact indexes for infographic retrieval."""
         emb_dir = artifact_subpath(
             self._metadata_config,
             self._target_dataset,
@@ -49,7 +49,7 @@ class InfoVQARetriever(Retriever):
         ]
         if missing_paths:
             raise FileNotFoundError(
-                "InfoVQA ablation embeddings are required: "
+                "InfoPathRAG embeddings are required: "
                 + ", ".join(missing_paths)
             )
 
@@ -71,12 +71,18 @@ class InfoVQARetriever(Retriever):
         }
 
     def _retrieve_for_run(self, qid, question_embedding, subquery_embeddings):
-        if self._run_function_mode == "infovqa_ablation":
-            return self.retrieve_infovqa_ablation(qid, question_embedding)
+        if self._run_function_mode == "infopathrag":
+            return self.retrieve_infopathrag(
+                qid=qid,
+                query_vec=question_embedding,
+                candidate_strategy="root_tile",
+                ranking_strategy="full_path",
+                path_weights=(1 / 3, 1 / 3, 1 / 3),
+            )
         return super()._retrieve_for_run(qid, question_embedding, subquery_embeddings)
 
-    def _get_infovqa_ablation_maps(self, fact_index):
-        """Build graph/index lookup maps once for all ablation queries."""
+    def _get_infopathrag_maps(self, fact_index):
+        """Build graph/index lookup maps once for infographic path retrieval."""
         if (
             self._infovqa_fact_to_parent is not None
             and self._infovqa_indexed_fact_targets is not None
@@ -114,7 +120,7 @@ class InfoVQARetriever(Retriever):
         self._infovqa_fact_to_parent = fact_to_parent
         self._infovqa_indexed_fact_targets = indexed_fact_targets
         print(
-            "[Retriever] Prepared InfoVQA ablation maps: "
+            "[Retriever] Prepared InfoPathRAG maps: "
             f"{len(fact_to_parent):,} facts, {len(indexed_fact_targets):,} indexed facts",
             flush=True,
         )
@@ -143,7 +149,7 @@ class InfoVQARetriever(Retriever):
     @staticmethod
     def _is_tile_target(target):
         try:
-            _, component_id = InfoVQARetriever._target_parts(target)
+            _, component_id = MyRetriever._target_parts(target)
         except ValueError:
             return False
         return (
@@ -155,7 +161,7 @@ class InfoVQARetriever(Retriever):
     @staticmethod
     def _is_fact_target(target):
         try:
-            _, component_id = InfoVQARetriever._target_parts(target)
+            _, component_id = MyRetriever._target_parts(target)
         except ValueError:
             return False
         return (
@@ -170,41 +176,109 @@ class InfoVQARetriever(Retriever):
             and str(target[1]) == "i_1"
         )
 
-    def retrieve_infovqa_ablation(self, qid, query_vec, variant=None,
-                                  root_k=None, tile_k=None, k_ret=None,
-                                  path_reranking=False, path_weights=(1.0, 0.0, 0.0),
-                                  normalization="raw", missing_path_policy="error"):
-        """Dispatch one of the four InfoVQA candidate-set experiments."""
-        variant = variant or self._run_config["parameters"].get(
-            "ablation_variant", "root_tile_facts"
-        )
-        methods = {
-            "flat_facts": self.retrieve_infovqa_flat_facts,
-            "root_facts": self.retrieve_infovqa_root_facts,
-            "tile_facts": self.retrieve_infovqa_tile_facts,
-            "root_tile_facts": self.retrieve_infovqa_root_tile_facts,
+    def retrieve_infopathrag(
+        self,
+        qid,
+        query_vec,
+        candidate_strategy="root_tile",
+        ranking_strategy="fact_only",
+        root_k=None,
+        tile_k=None,
+        top_entry_k=70,
+        top_fact_k=10,
+        path_weights=(1.0, 0.0, 0.0),
+        normalization="raw",
+        missing_path_policy="error",
+    ):
+        """Retrieve infographic paths using independent candidate and ranking strategies."""
+        candidate_modes = {
+            "flat": ("flat", None, None),
+            "root": ("root", "root", None),
+            "tile": ("tile", None, "tile"),
+            "root_tile": ("root_tile", "root_tile", "root_tile"),
         }
         try:
-            retrieve_variant = methods[variant]
+            mode, selected_root_mode, selected_tile_mode = candidate_modes[
+                candidate_strategy
+            ]
         except KeyError as exc:
-            raise ValueError(f"Unknown InfoVQA ablation variant: {variant}") from exc
-        return retrieve_variant(
-            qid, query_vec, root_k, tile_k, k_ret, path_reranking,
-            path_weights, normalization, missing_path_policy,
+            raise ValueError(
+                f"Unknown candidate strategy: {candidate_strategy}"
+            ) from exc
+
+        ranking_weights = {
+            "fact_only": (1.0, 0.0, 0.0),
+            "fact_tile": path_weights,
+            "fact_root": path_weights,
+            "full_path": path_weights,
+        }
+        if ranking_strategy not in ranking_weights:
+            raise ValueError(f"Unknown ranking strategy: {ranking_strategy}")
+        rerank = ranking_strategy != "fact_only"
+        weights = ranking_weights[ranking_strategy]
+        if ranking_strategy == "fact_tile" and weights[2] != 0:
+            raise ValueError("fact_tile ranking requires root weight to be zero.")
+        if ranking_strategy == "fact_root" and weights[1] != 0:
+            raise ValueError("fact_root ranking requires tile weight to be zero.")
+
+        root_k, tile_k, top_entry_k, top_fact_k = self._infovqa_k_values(
+            root_k, tile_k, top_entry_k, top_fact_k
+        )
+        if mode == "flat":
+            fact_index = self.info_level_to_indexer["fact"]
+            facts = {
+                self._target_parts(target)
+                for target in (fact_index._idx2target or {}).values()
+                if self._is_fact_target(target)
+            }
+            return self._retrieve_infovqa_candidate_facts(
+                qid, query_vec, facts, [], [], candidate_strategy, top_fact_k,
+                {}, {}, rerank, weights, normalization, missing_path_policy,
+            )
+
+        roots, tiles, ranked_nodes, root_scores, tile_scores = self._infovqa_selection(
+            query_vec, root_k, tile_k, top_entry_k
+        )
+        fact_to_parent, _ = self._get_infopathrag_maps(
+            self.info_level_to_indexer["fact"]
+        )
+        selected_entries = {target for target, _ in ranked_nodes}
+        selected_roots = {
+            target for target in selected_entries
+            if selected_root_mode and target in dict(roots)
+        }
+        selected_tiles = {
+            target for target in selected_entries
+            if selected_tile_mode and target in dict(tiles)
+        }
+        candidate_facts = {
+            fact for fact, paths in fact_to_parent.items()
+            if any(
+                (root in selected_roots if candidate_strategy == "root" else
+                 tile in selected_tiles if candidate_strategy == "tile" else
+                 root in selected_roots or tile in selected_tiles)
+                for root, tile in paths
+            )
+        }
+        return self._retrieve_infovqa_candidate_facts(
+            qid, query_vec, candidate_facts,
+            list(selected_roots), list(selected_tiles), candidate_strategy, top_fact_k,
+            root_scores, tile_scores, rerank, weights, normalization,
+            missing_path_policy,
         )
 
     def _retrieve_infovqa_candidate_facts(
         self, qid, query_vec, candidate_facts, selected_roots, selected_tiles,
-        variant, k_ret, root_scores=None, tile_scores=None,
+        candidate_strategy, k_ret, root_scores=None, tile_scores=None,
         path_reranking=False, path_weights=(1.0, 0.0, 0.0),
         normalization="raw", missing_path_policy="error",
     ):
-        """Score, rank, and serialize a common InfoVQA fact candidate set."""
+        """Score, rank, and serialize a common infographic fact candidate set."""
         started = time.perf_counter()
         fact_index = self.info_level_to_indexer.get("fact")
         if fact_index is None or fact_index.get_embeddings() is None:
-            raise RuntimeError("InfoVQA ablation requires tile_fact embeddings.")
-        fact_to_parent, indexed_fact_targets = self._get_infovqa_ablation_maps(
+            raise RuntimeError("InfoPathRAG requires tile_fact embeddings.")
+        fact_to_parent, indexed_fact_targets = self._get_infopathrag_maps(
             fact_index
         )
         facts = sorted(fact for fact in candidate_facts if fact in indexed_fact_targets)
@@ -306,7 +380,7 @@ class InfoVQARetriever(Retriever):
         } for item in scored[:k_ret]]
         result = {
             "qid": qid, "retrieved_paths": paths,
-            "ablation_variant": variant,
+            "candidate_strategy": candidate_strategy,
             "candidate_facts": [list(fact) for fact in sorted(candidate_facts)],
             "candidate_roots": [list(root) for root in selected_roots],
             "candidate_tiles": [list(tile) for tile in selected_tiles],
@@ -516,7 +590,7 @@ class InfoVQARetriever(Retriever):
         ).tolist()
         return dict(zip(targets, scores))
 
-    def _infovqa_selection(self, query_vec, root_k, tile_k, k_ret):
+    def _infovqa_selection(self, query_vec, root_k, tile_k, entry_k):
         top_index = self.info_level_to_indexer["root"]
         low_index = self.info_level_to_indexer["tile"]
         all_roots = [
@@ -540,101 +614,98 @@ class InfoVQARetriever(Retriever):
         tiles = all_tiles
         ranked_nodes = sorted(
             dict(roots + tiles).items(), key=lambda item: item[1], reverse=True
-        )[:k_ret]
+        )[:entry_k]
         return roots, tiles, ranked_nodes, dict(all_roots), dict(all_tiles)
 
-    def _infovqa_k_values(self, root_k, tile_k, k_ret):
+    def _infovqa_k_values(self, root_k, tile_k, top_entry_k, top_fact_k):
         params = self._run_config["parameters"]
-        k_ret = k_ret or int(params.get("top_k", 10))
-        root_k = root_k or int(params.get("ablation_root_k", 100))
-        tile_k = tile_k or int(params.get("ablation_tile_k", root_k))
-        return root_k, tile_k, k_ret
+        root_k = root_k or int(params.get("root_k", params.get("ablation_root_k", 100)))
+        tile_k = tile_k or int(params.get("tile_k", params.get("ablation_tile_k", root_k)))
+        top_entry_k = top_entry_k or int(params.get("top_entry_k", 70))
+        top_fact_k = top_fact_k or int(params.get("top_fact_k", params.get("top_k", 10)))
+        return root_k, tile_k, top_entry_k, top_fact_k
 
-    def _retrieve_infovqa_selected(self, qid, query_vec, variant,
-                                   root_k, tile_k, k_ret, mode,
-                                   path_reranking=False, path_weights=(1.0, 0.0, 0.0),
-                                   normalization="raw", missing_path_policy="error"):
-        root_k, tile_k, k_ret = self._infovqa_k_values(root_k, tile_k, k_ret)
-        roots, tiles, ranked_nodes, all_root_scores, all_tile_scores = self._infovqa_selection(
-            query_vec, root_k, tile_k, k_ret
+    def get_graph(self) -> dict[str, dict[str, dict]]:
+        """Return the loaded graph as infographic -> tiles -> facts."""
+        graph_view = {}
+        for filename, edges in self.graph.intra_document_edges.items():
+            infographic = {"tiles": {}}
+            for parent_id, children in edges.items():
+                if str(parent_id) != "i_1":
+                    continue
+                for child in children:
+                    tile_target = self._target_parts(child.get_gcid())
+                    if not self._is_tile_target(tile_target):
+                        continue
+                    tile_id = tile_target[1]
+                    facts = []
+                    for fact in edges.get(tile_id, []):
+                        fact_target = self._target_parts(fact.get_gcid())
+                        if self._is_fact_target(fact_target):
+                            facts.append({"id": fact_target[1], "target": list(fact_target)})
+                    infographic["tiles"][tile_id] = {
+                        "target": list(tile_target),
+                        "facts": facts,
+                    }
+            graph_view[str(filename)] = infographic
+        return graph_view
+
+    def get_infographic_hierarchy(self, infographic: str) -> dict[str, object]:
+        """Return the hierarchy for one infographic."""
+        graph = self.get_graph()
+        for name, hierarchy in graph.items():
+            if name == infographic or os.path.basename(name) == infographic:
+                return {"infographic": name, **hierarchy}
+        raise KeyError(f"Infographic not found in graph: {infographic}")
+
+
+def main() -> None:
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(description="Run InfoPathRAG retrieval.")
+    parser.add_argument("--run-name", default="infopathrag")
+    parser.add_argument("--candidate-strategy", choices=("flat", "root", "tile", "root_tile"), default="root_tile")
+    parser.add_argument("--ranking-strategy", choices=("fact_only", "full_path"), default="full_path")
+    parser.add_argument("--top-root-k", type=int, default=100)
+    parser.add_argument("--top-tile-k", type=int, default=100)
+    parser.add_argument("--top-entry-k", type=int, default=70)
+    parser.add_argument("--top-fact-k", type=int, default=10)
+    parser.add_argument("--weights", type=float, nargs=3, default=(1 / 3, 1 / 3, 1 / 3))
+    parser.add_argument("--graph", action="store_true")
+    parser.add_argument("--infographic", default=None)
+    args = parser.parse_args()
+
+    retriever = MyRetriever(cli_args=[
+        "--run_mode", "infopathrag",
+        "--target_dataset", "InfoVQA",
+        "--run_name", args.run_name,
+        "--force_overwrite", "True",
+    ])
+    if args.graph:
+        value = (
+            retriever.get_infographic_hierarchy(args.infographic)
+            if args.infographic else retriever.get_graph()
         )
-        fact_to_parent, _ = self._get_infovqa_ablation_maps(
-            self.info_level_to_indexer["fact"]
-        )
-        root_set, tile_set = dict(roots), dict(tiles)
-        if mode == "root":
-            selected = {target for target, _ in roots}
-        elif mode == "tile":
-            selected = {target for target, _ in tiles}
-        else:
-            selected = {target for target, _ in ranked_nodes}
-        candidate_facts = {
-            fact for fact, paths in fact_to_parent.items()
-            if any(
-                (mode == "root" and root in selected)
-                or (mode == "tile" and tile in selected)
-                or (mode == "root_tile" and (root in selected or tile in selected))
-                for root, tile in paths
-            )
-        }
-        selected_roots = list(root_set) if mode == "root" else []
-        selected_tiles = list(tile_set) if mode == "tile" else []
-        if mode == "root_tile":
-            selected_roots = [target for target, _ in ranked_nodes if target in root_set]
-            selected_tiles = [target for target, _ in ranked_nodes if target in tile_set]
-        return self._retrieve_infovqa_candidate_facts(
-            qid, query_vec, candidate_facts, selected_roots, selected_tiles,
-            variant, k_ret, all_root_scores, all_tile_scores, path_reranking, path_weights,
-            normalization, missing_path_policy,
+        print(json.dumps(value, indent=2, ensure_ascii=False))
+        return
+
+    for qid in retriever._questions_manager.get_qid_list():
+        question = retriever._questions_manager.get_question_instance_by_qid(qid)
+        retriever.retrieve_infopathrag(
+            qid=qid,
+            query_vec=question.get_embedding(),
+            candidate_strategy=args.candidate_strategy,
+            ranking_strategy=args.ranking_strategy,
+            path_weights=tuple(args.weights),
+            root_k=args.top_root_k,
+            tile_k=args.top_tile_k,
+            top_entry_k=args.top_entry_k,
+            top_fact_k=args.top_fact_k,
         )
 
-    def retrieve_infovqa_flat_facts(self, qid, query_vec, root_k=None,
-                                    tile_k=None, k_ret=None, path_reranking=False,
-                                    path_weights=(1.0, 0.0, 0.0), normalization="raw",
-                                    missing_path_policy="error"):
-        del root_k, tile_k
-        k_ret = k_ret or int(self._run_config["parameters"].get("top_k", 10))
-        fact_index = self.info_level_to_indexer.get("fact")
-        if fact_index is None:
-            raise RuntimeError("InfoVQA ablation requires tile_fact embeddings.")
-        facts = {
-            self._target_parts(target) for target in (fact_index._idx2target or {}).values()
-            if self._is_fact_target(target)
-        }
-        return self._retrieve_infovqa_candidate_facts(
-            qid, query_vec, facts, [], [], "flat_facts", k_ret, {},
-            {}, path_reranking, path_weights, normalization, missing_path_policy,
-        )
 
-    def retrieve_infovqa_root_facts(self, qid, query_vec, root_k=None,
-                                    tile_k=None, k_ret=None, path_reranking=False,
-                                    path_weights=(1.0, 0.0, 0.0), normalization="raw",
-                                    missing_path_policy="error"):
-        del tile_k
-        return self._retrieve_infovqa_selected(
-            qid, query_vec, "root_facts", root_k, None, k_ret, "root",
-            path_reranking, path_weights, normalization, missing_path_policy,
-        )
-
-    def retrieve_infovqa_tile_facts(self, qid, query_vec, root_k=None,
-                                    tile_k=None, k_ret=None, path_reranking=False,
-                                    path_weights=(1.0, 0.0, 0.0), normalization="raw",
-                                    missing_path_policy="error"):
-        del root_k
-        return self._retrieve_infovqa_selected(
-            qid, query_vec, "tile_facts", None, tile_k, k_ret, "tile",
-            path_reranking, path_weights, normalization, missing_path_policy,
-        )
-
-    def retrieve_infovqa_root_tile_facts(self, qid, query_vec, root_k=None,
-                                         tile_k=None, k_ret=None,
-                                         path_reranking=False,
-                                         path_weights=(1.0, 0.0, 0.0),
-                                         normalization="raw",
-                                         missing_path_policy="error"):
-        return self._retrieve_infovqa_selected(
-            qid, query_vec, "root_tile_facts", root_k, tile_k, k_ret, "root_tile",
-            path_reranking, path_weights, normalization, missing_path_policy,
-        )
+if __name__ == "__main__":
+    main()
     
     

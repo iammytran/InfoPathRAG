@@ -184,7 +184,6 @@ class MyRetriever(Retriever):
         ranking_strategy="fact_only",
         root_k=None,
         tile_k=None,
-        top_entry_k=70,
         top_fact_k=10,
         path_weights=(1.0, 0.0, 0.0),
         normalization="raw",
@@ -221,8 +220,8 @@ class MyRetriever(Retriever):
         if ranking_strategy == "fact_root" and weights[1] != 0:
             raise ValueError("fact_root ranking requires tile weight to be zero.")
 
-        root_k, tile_k, top_entry_k, top_fact_k = self._infovqa_k_values(
-            root_k, tile_k, top_entry_k, top_fact_k
+        root_k, tile_k, top_fact_k = self._infovqa_k_values(
+            root_k, tile_k, top_fact_k
         )
         if mode == "flat":
             fact_index = self.info_level_to_indexer["fact"]
@@ -237,7 +236,7 @@ class MyRetriever(Retriever):
             )
 
         roots, tiles, ranked_nodes, root_scores, tile_scores = self._infovqa_selection(
-            query_vec, root_k, tile_k, top_entry_k
+            query_vec, root_k, tile_k
         )
         fact_to_parent, _ = self._get_infopathrag_maps(
             self.info_level_to_indexer["fact"]
@@ -590,7 +589,7 @@ class MyRetriever(Retriever):
         ).tolist()
         return dict(zip(targets, scores))
 
-    def _infovqa_selection(self, query_vec, root_k, tile_k, entry_k):
+    def _infovqa_selection(self, query_vec, root_k, tile_k):
         top_index = self.info_level_to_indexer["root"]
         low_index = self.info_level_to_indexer["tile"]
         all_roots = [
@@ -614,16 +613,15 @@ class MyRetriever(Retriever):
         tiles = all_tiles
         ranked_nodes = sorted(
             dict(roots + tiles).items(), key=lambda item: item[1], reverse=True
-        )[:entry_k]
+        )
         return roots, tiles, ranked_nodes, dict(all_roots), dict(all_tiles)
 
-    def _infovqa_k_values(self, root_k, tile_k, top_entry_k, top_fact_k):
+    def _infovqa_k_values(self, root_k, tile_k, top_fact_k):
         params = self._run_config["parameters"]
         root_k = root_k or int(params.get("root_k", params.get("ablation_root_k", 100)))
         tile_k = tile_k or int(params.get("tile_k", params.get("ablation_tile_k", root_k)))
-        top_entry_k = top_entry_k or int(params.get("top_entry_k", 70))
         top_fact_k = top_fact_k or int(params.get("top_fact_k", params.get("top_k", 10)))
-        return root_k, tile_k, top_entry_k, top_fact_k
+        return root_k, tile_k, top_fact_k
 
     def get_graph(self) -> dict[str, dict[str, dict]]:
         """Return the loaded graph as infographic -> tiles -> facts."""
@@ -669,7 +667,6 @@ def main() -> None:
     parser.add_argument("--ranking-strategy", choices=("fact_only", "full_path"), default="full_path")
     parser.add_argument("--top-root-k", type=int, default=100)
     parser.add_argument("--top-tile-k", type=int, default=100)
-    parser.add_argument("--top-entry-k", type=int, default=70)
     parser.add_argument("--top-fact-k", type=int, default=10)
     parser.add_argument("--weights", type=float, nargs=3, default=(1 / 3, 1 / 3, 1 / 3))
     parser.add_argument("--graph", action="store_true")
@@ -700,7 +697,6 @@ def main() -> None:
             path_weights=tuple(args.weights),
             root_k=args.top_root_k,
             tile_k=args.top_tile_k,
-            top_entry_k=args.top_entry_k,
             top_fact_k=args.top_fact_k,
         )
 

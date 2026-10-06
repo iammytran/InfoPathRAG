@@ -45,4 +45,5 @@ The raw-only script writes to
 default, while the z-score-only script writes to
 `algorithm_results/InfoPathRAG/InfoVQA/hyperparameter_sensitivity_zscore`.
 Sensitivity plots label each configuration with its actual
-`(fact, tile, root)` weights or `(root_k, tile_k, final_k)` top-k tuple.
+`(fact, tile, root)` weights, with `top_fact_k` controlling the final number
+of returned facts.

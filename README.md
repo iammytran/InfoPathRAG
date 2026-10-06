@@ -21,9 +21,10 @@ python -m src.lilac.retriever.my_retriever \
     --top-fact-k 10
 
 4. Generation
+./scripts/experiments/end_to_end_accuracy.sh -e "MM-Embed" -b "InfoVQA"
 
+4. Visualize results
 
-4. Hyperparameter sensitivity
 
 
 

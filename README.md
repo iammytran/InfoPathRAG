@@ -13,7 +13,12 @@ python /Users/mytnguyen/Documents/InfoPathRAG/src/lilac/lcg_constructor/tile_inf
 ./scripts/query_decomposition/queryset_embedder.sh --embedder mmembed 
 
 3. Retrieve
-
+python -m src.lilac.retriever.my_retriever \
+    --run-name root-tile-full-path \
+    --top-root-k 100 \
+    --top-tile-k 100 \
+    --top-entry-k 70 \
+    --top-fact-k 10
 
 4. Generation
 

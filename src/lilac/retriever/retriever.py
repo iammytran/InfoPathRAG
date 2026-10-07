@@ -1178,21 +1178,21 @@ def parse_arguments(argv=None) -> argparse.Namespace:
         help="Number of retrieval iterations."
     )
     
-    # parser.add_argument(
-    #     "--lowlevel_text",
-    #     type = str,
-    #     default = None,        
-    # )
-    # parser.add_argument(
-    #     "--lowlevel_table",
-    #     type = str,
-    #     default = None,        
-    # )
-    # parser.add_argument(
-    #     "--lowlevel_image",
-    #     type = str,
-    #     default = None,        
-    # )
+    parser.add_argument(
+        "--lowlevel_text",
+        type = str,
+        default = None,        
+    )
+    parser.add_argument(
+        "--lowlevel_table",
+        type = str,
+        default = None,        
+    )
+    parser.add_argument(
+        "--lowlevel_image",
+        type = str,
+        default = None,        
+    )
     
     parser.add_argument(
         "--force_overwrite", 

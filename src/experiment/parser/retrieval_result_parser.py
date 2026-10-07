@@ -252,7 +252,7 @@ def parse_retrieval_results(
     
     retrieval_parser = None
     
-    if algorithm_name == AlgorithmName.OMG:
+    if algorithm_name in (AlgorithmName.OMG, AlgorithmName.INFOPATHRAG):
         if data_type == BenchmarkType.MULTIMODALQA:
             retrieval_parser = OMGMMQARetrievalResultParser(algorithm_name, data_type, qa_data_path, retrieval_result_path)
         elif data_type == BenchmarkType.VQA:

@@ -2,6 +2,7 @@ import os
 import time
 
 import torch
+from tqdm import tqdm
 
 from src.lilac.retriever.indexer import Indexer
 from src.utils.utils import append_to_jsonl_file, artifact_subpath
@@ -13,6 +14,7 @@ class MyRetriever(Retriever):
         return "InfoPathRAG"
 
     def __init__(self, config_path: str = RUN_CONFIG_PATH, cli_args=None):
+        self._save_candidate_details = False
         self._infovqa_fact_to_parent = None
         self._infovqa_indexed_fact_targets = None
         super().__init__(config_path=config_path, cli_args=cli_args)
@@ -408,8 +410,23 @@ class MyRetriever(Retriever):
             "missing_path_count": missing_path_count,
             "time": {"retrieval_time(ms)": (time.perf_counter() - started) * 1000},
         }
+        output_result = result
+        if not self._save_candidate_details:
+            output_result = {
+                key: result[key]
+                for key in (
+                    "qid",
+                    "retrieved_paths",
+                    "candidate_strategy",
+                    "path_reranking",
+                    "path_weights",
+                    "normalization",
+                    "missing_path_count",
+                    "time",
+                )
+            }
         append_to_jsonl_file(
-            result, os.path.join(self._output_dir, self._run_name + ".jsonl")
+            output_result, os.path.join(self._output_dir, self._run_name + ".jsonl")
         )
         return result
 
@@ -659,6 +676,82 @@ class MyRetriever(Retriever):
         raise KeyError(f"Infographic not found in graph: {infographic}")
 
 
+def _normalize_document_id(document_id):
+    document_id = os.path.basename(str(document_id))
+    for suffix in (".json", ".jpeg", ".jpg", ".png"):
+        if document_id.endswith(suffix):
+            return document_id[: -len(suffix)]
+    return document_id
+
+
+def _ground_truth_document_id(qid):
+    """Extract a normalized InfoVQA document id from a query id."""
+    return _normalize_document_id(str(qid).split("-", 1)[0])
+
+
+def _retrieved_document_ids(result):
+    """Return unique root document ids in ranked path order."""
+    document_ids = []
+    seen = set()
+    for path in result.get("retrieved_paths", []):
+        nodes = path.get("nodes", [])
+        if not nodes or not nodes[0]:
+            continue
+        document_id = _normalize_document_id(nodes[0][0])
+        if document_id not in seen:
+            seen.add(document_id)
+            document_ids.append(document_id)
+    return document_ids
+
+
+def _calculate_retrieval_summary(results, run_name, algorithm, elapsed_seconds):
+    """Calculate document metrics and candidate-fact statistics for a run."""
+    metric_values = {"recall@1": [], "recall@3": [], "mrr@3": [], "mrr@10": []}
+    candidate_counts = [
+        int(result.get("num_candidate_facts", len(result.get("candidate_facts", []))))
+        for result in results.values()
+    ]
+    for qid, result in results.items():
+        expected = _ground_truth_document_id(qid)
+        retrieved = _retrieved_document_ids(result)
+        for cutoff in (1, 3):
+            metric_values[f"recall@{cutoff}"].append(
+                float(expected in retrieved[:cutoff])
+            )
+        for cutoff in (3, 10):
+            reciprocal_rank = 0.0
+            for rank, document_id in enumerate(retrieved[:cutoff], start=1):
+                if document_id == expected:
+                    reciprocal_rank = 1.0 / rank
+                    break
+            metric_values[f"mrr@{cutoff}"].append(reciprocal_rank)
+
+    count = len(results)
+    averages = {
+        name: (sum(values) / count if count else 0.0)
+        for name, values in metric_values.items()
+    }
+    return {
+        "run_name": run_name,
+        "algorithm": algorithm,
+        "num_questions": count,
+        "total_time_seconds": elapsed_seconds,
+        **averages,
+        "candidate_facts": {
+            "total": sum(candidate_counts),
+            "average": (
+                sum(candidate_counts) / len(candidate_counts)
+                if candidate_counts else 0.0
+            ),
+            "min": min(candidate_counts) if candidate_counts else 0,
+            "max": max(candidate_counts) if candidate_counts else 0,
+        },
+        "metric_level": "document",
+        "ground_truth": "normalized document id extracted from qid",
+        "prediction": "unique normalized root document ids from retrieved_paths",
+    }
+
+
 def main() -> None:
     import argparse
     import json
@@ -690,9 +783,14 @@ def main() -> None:
         print(json.dumps(value, indent=2, ensure_ascii=False))
         return
 
-    for qid in retriever._questions_manager.get_qid_list():
+    qids = retriever._questions_manager.get_qid_list()
+    results = {}
+    started_at = time.perf_counter()
+    progress = tqdm(qids, desc="Retrieving InfoVQA", unit="question")
+    for qid in progress:
+        progress.set_postfix_str(f"qid={qid}", refresh=False)
         question = retriever._questions_manager.get_question_instance_by_qid(qid)
-        retriever.retrieve_infopathrag(
+        result = retriever.retrieve_infopathrag(
             qid=qid,
             query_vec=question.get_embedding(),
             candidate_strategy=args.candidate_strategy,
@@ -703,6 +801,23 @@ def main() -> None:
             top_entry_k=args.top_entry_k,
             top_fact_k=args.top_fact_k,
         )
+        results[str(qid)] = result
+
+    summary = _calculate_retrieval_summary(
+        results,
+        run_name=args.run_name,
+        algorithm="InfoPathRAG",
+        elapsed_seconds=time.perf_counter() - started_at,
+    )
+    summary_path = os.path.join(retriever._output_dir, "retrieval_summary.json")
+    with open(summary_path, "w", encoding="utf-8") as summary_file:
+        json.dump(summary, summary_file, indent=2, ensure_ascii=False)
+    print(
+        f"[InfoPathRAG] Completed {len(qids):,} questions. "
+        f"Results: {retriever._output_dir}\n"
+        f"[InfoPathRAG] Summary: {summary_path}",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

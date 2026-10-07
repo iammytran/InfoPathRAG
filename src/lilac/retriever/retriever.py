@@ -126,8 +126,12 @@ class Retriever:
         # Query embedding
         self.initaite_questions_manager()
         
-        # Embedding indexer
-        self.initiate_indexers()
+        # InfoPathRAG builds its own root/tile/fact indexes in MyRetriever.
+        # Avoid loading the generic top/low indexes a second time.
+        if self._run_function_mode == "infopathrag":
+            self.level_to_indexer = {}
+        else:
+            self.initiate_indexers()
         
         # Initiate multimodal graph
         self.initiate_graph()
@@ -1178,21 +1182,24 @@ def parse_arguments(argv=None) -> argparse.Namespace:
         help="Number of retrieval iterations."
     )
     
-    # parser.add_argument(
-    #     "--lowlevel_text",
-    #     type = str,
-    #     default = None,        
-    # )
-    # parser.add_argument(
-    #     "--lowlevel_table",
-    #     type = str,
-    #     default = None,        
-    # )
-    # parser.add_argument(
-    #     "--lowlevel_image",
-    #     type = str,
-    #     default = None,        
-    # )
+    parser.add_argument(
+        "--lowlevel_text",
+        type=str,
+        default=None,
+        help="Override the low-level text embedding artifact name."
+    )
+    parser.add_argument(
+        "--lowlevel_table",
+        type=str,
+        default=None,
+        help="Override the low-level table embedding artifact name."
+    )
+    parser.add_argument(
+        "--lowlevel_image",
+        type=str,
+        default=None,
+        help="Override the low-level image embedding artifact name."
+    )
     
     parser.add_argument(
         "--force_overwrite", 

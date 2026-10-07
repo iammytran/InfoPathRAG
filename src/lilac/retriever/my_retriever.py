@@ -1,7 +1,9 @@
 import os
 import time
+import json
 
 import torch
+from tqdm import tqdm
 
 from src.lilac.retriever.indexer import Indexer
 from src.utils.utils import append_to_jsonl_file, artifact_subpath
@@ -13,20 +15,26 @@ class MyRetriever(Retriever):
         return "InfoPathRAG"
 
     def __init__(self, config_path: str = RUN_CONFIG_PATH, cli_args=None):
+        print("[InfoPathRAG] Initializing retriever...", flush=True)
+        self._save_candidate_details = False
         self._infovqa_fact_to_parent = None
         self._infovqa_indexed_fact_targets = None
+        self._infovqa_root_to_facts = None
+        self._infovqa_tile_to_facts = None
+        self._infovqa_index_maps = {}
         super().__init__(config_path=config_path, cli_args=cli_args)
         self._init_infovqa_indexers()
 
     def _init_infovqa_indexers(self):
         """Prepare root, tile, and fact indexes for infographic retrieval."""
+        print("[InfoPathRAG] Loading root/tile/fact indexes...", flush=True)
         emb_dir = artifact_subpath(
             self._metadata_config,
             self._target_dataset,
             "embeddings_dirname",
             self._target_embedder,
         )
-        gpu_num = -1
+        gpu_num = self._run_config["top_level_embeddings"].get("gpu_num", -1)
 
         root_paths = (
             os.path.join(emb_dir, "image.pt"),
@@ -69,6 +77,7 @@ class MyRetriever(Retriever):
             "tile": tile_index,
             "fact": fact_index,
         }
+        print("[InfoPathRAG] Indexes ready.", flush=True)
 
     def _retrieve_for_run(self, qid, question_embedding, subquery_embeddings):
         if self._run_function_mode == "infopathrag":
@@ -81,6 +90,7 @@ class MyRetriever(Retriever):
             )
         return super()._retrieve_for_run(qid, question_embedding, subquery_embeddings)
 
+
     def _get_infopathrag_maps(self, fact_index):
         """Build graph/index lookup maps once for infographic path retrieval."""
         if (
@@ -92,8 +102,10 @@ class MyRetriever(Retriever):
                 self._infovqa_indexed_fact_targets,
             )
 
-        # mapping all the paths from fact's ancestors (root, tile) to that fact
+        # Build these maps once; retrieval runs them for every question.
         fact_to_parent = {}
+        root_to_facts = {}
+        tile_to_facts = {}
         for filename, edges in self.graph.intra_document_edges.items():
             for parent_id, children in edges.items():
                 parent = (filename, str(parent_id))
@@ -109,16 +121,29 @@ class MyRetriever(Retriever):
                             fact_to_parent.setdefault(fact_target, []).append(
                                 (parent, child_target)
                             )
+                            root_to_facts.setdefault(parent, set()).add(fact_target)
+                            tile_to_facts.setdefault(child_target, set()).add(fact_target)
 
-        # mapping the new fact index to the old index that used in tile_fact.json
+        # Normalize index targets once instead of scanning every index per query.
         indexed_fact_targets = {}
-        for indexed_target in (fact_index._idx2target or {}).values():
+        for idx, indexed_target in (fact_index._idx2target or {}).items():
             normalized = self._target_parts(indexed_target)
             if self._is_fact_target(normalized):
-                indexed_fact_targets[normalized] = tuple(indexed_target)
+                indexed_fact_targets[normalized] = int(idx)
+        for level in ("root", "tile"):
+            normalized_map = {
+                self._target_parts(target): int(idx)
+                for idx, target in (
+                    self.info_level_to_indexer[level]._idx2target or {}
+                ).items()
+            }
+            self._infovqa_index_maps[level] = normalized_map
+            self._infovqa_index_maps[id(self.info_level_to_indexer[level])] = normalized_map
 
         self._infovqa_fact_to_parent = fact_to_parent
         self._infovqa_indexed_fact_targets = indexed_fact_targets
+        self._infovqa_root_to_facts = root_to_facts
+        self._infovqa_tile_to_facts = tile_to_facts
         print(
             "[Retriever] Prepared InfoPathRAG maps: "
             f"{len(fact_to_parent):,} facts, {len(indexed_fact_targets):,} indexed facts",
@@ -250,15 +275,19 @@ class MyRetriever(Retriever):
             target for target in selected_entries
             if selected_tile_mode and target in dict(tiles)
         }
-        candidate_facts = {
-            fact for fact, paths in fact_to_parent.items()
-            if any(
-                (root in selected_roots if candidate_strategy == "root" else
-                 tile in selected_tiles if candidate_strategy == "tile" else
-                 root in selected_roots or tile in selected_tiles)
-                for root, tile in paths
-            )
-        }
+        if candidate_strategy == "root":
+            candidate_facts = set().union(
+                *(self._infovqa_root_to_facts.get(root, set()) for root in selected_roots)
+            ) if selected_roots else set()
+        elif candidate_strategy == "tile":
+            candidate_facts = set().union(
+                *(self._infovqa_tile_to_facts.get(tile, set()) for tile in selected_tiles)
+            ) if selected_tiles else set()
+        else:
+            candidate_facts = set().union(
+                *(self._infovqa_root_to_facts.get(root, set()) for root in selected_roots),
+                *(self._infovqa_tile_to_facts.get(tile, set()) for tile in selected_tiles),
+            ) if selected_roots or selected_tiles else set()
         return self._retrieve_infovqa_candidate_facts(
             qid, query_vec, candidate_facts,
             list(selected_roots), list(selected_tiles), candidate_strategy, top_fact_k,
@@ -283,10 +312,7 @@ class MyRetriever(Retriever):
         facts = sorted(fact for fact in candidate_facts if fact in indexed_fact_targets)
         if facts:
             embeddings = fact_index.get_embeddings().float()
-            rows = [
-                fact_index.get_vector_idx_for_target(indexed_fact_targets[fact])
-                for fact in facts
-            ]
+            rows = [indexed_fact_targets[fact] for fact in facts]
             query = query_vec.to(embeddings.device, dtype=embeddings.dtype)
             scores = torch.nn.functional.cosine_similarity(
                 embeddings[rows], query.unsqueeze(0), dim=1
@@ -322,8 +348,7 @@ class MyRetriever(Retriever):
             fact_values = self._normalize_values(fact_values, normalization)
         else:
             fact_values = scores
-        for fact, score in zip(facts, scores):
-            fact_score = fact_values[facts.index(fact)]
+        for fact, score, fact_score in zip(facts, scores, fact_values):
             paths = fact_to_parent.get(fact, [])
             if not paths:
                 missing_path_count += 1
@@ -407,8 +432,23 @@ class MyRetriever(Retriever):
             "missing_path_count": missing_path_count,
             "time": {"retrieval_time(ms)": (time.perf_counter() - started) * 1000},
         }
+        output_result = result
+        if not self._save_candidate_details:
+            output_result = {
+                key: result[key]
+                for key in (
+                    "qid",
+                    "retrieved_paths",
+                    "candidate_strategy",
+                    "path_reranking",
+                    "path_weights",
+                    "normalization",
+                    "missing_path_count",
+                    "time",
+                )
+            }
         append_to_jsonl_file(
-            result, os.path.join(self._output_dir, self._run_name + ".jsonl")
+            output_result, os.path.join(self._output_dir, self._run_name + ".jsonl")
         )
         return result
 
@@ -568,20 +608,19 @@ class MyRetriever(Retriever):
 
     def _score_index_targets(self, indexer, targets, query_vec):
         """Score only the indexed targets required by candidate paths."""
-        indexed_targets = {}
-        for target in (indexer._idx2target or {}).values():
-            normalized = self._target_parts(target)
-            indexed_targets[normalized] = tuple(target)
+        indexed_targets = self._infovqa_index_maps.get(id(indexer))
+        if indexed_targets is None:
+            indexed_targets = {
+                self._target_parts(target): int(idx)
+                for idx, target in (indexer._idx2target or {}).items()
+            }
+            self._infovqa_index_maps[id(indexer)] = indexed_targets
 
         targets = [target for target in targets if target in indexed_targets]
         if not targets:
             return {}
 
-        original_targets = [indexed_targets[target] for target in targets]
-        rows = [
-            indexer.get_vector_idx_for_target(target)
-            for target in original_targets
-        ]
+        rows = [indexed_targets[target] for target in targets]
         embeddings = indexer.get_embeddings().float()[rows]
         query = query_vec.to(embeddings.device, dtype=embeddings.dtype)
         scores = torch.nn.functional.cosine_similarity(
@@ -657,6 +696,61 @@ class MyRetriever(Retriever):
         raise KeyError(f"Infographic not found in graph: {infographic}")
 
 
+def _ground_truth_document_id(qid):
+    """Extract the InfoVQA document id from a qid such as 36966.jpeg-1."""
+    return str(qid).split(".", 1)[0].split("-", 1)[0]
+
+
+def _retrieved_document_ids(result):
+    """Return unique root document ids in ranked path order."""
+    document_ids = []
+    seen = set()
+    for path in result.get("retrieved_paths", []):
+        nodes = path.get("nodes", [])
+        if not nodes or not nodes[0]:
+            continue
+        document_id = str(nodes[0][0]).removesuffix(".json")
+        if document_id not in seen:
+            seen.add(document_id)
+            document_ids.append(document_id)
+    return document_ids
+
+
+def _calculate_retrieval_summary(results, run_name, algorithm, elapsed_seconds):
+    """Calculate document-level Recall and MRR from ranked retrieval results."""
+    metric_values = {"recall@1": [], "recall@3": [], "mrr@3": [], "mrr@10": []}
+    for qid, result in results.items():
+        expected = _ground_truth_document_id(qid)
+        retrieved = _retrieved_document_ids(result)
+        for cutoff in (1, 3):
+            metric_values[f"recall@{cutoff}"].append(
+                float(expected in retrieved[:cutoff])
+            )
+        for cutoff in (3, 10):
+            reciprocal_rank = 0.0
+            for rank, document_id in enumerate(retrieved[:cutoff], start=1):
+                if document_id == expected:
+                    reciprocal_rank = 1.0 / rank
+                    break
+            metric_values[f"mrr@{cutoff}"].append(reciprocal_rank)
+
+    count = len(results)
+    averages = {
+        name: (sum(values) / count if count else 0.0)
+        for name, values in metric_values.items()
+    }
+    return {
+        "run_name": run_name,
+        "algorithm": algorithm,
+        "num_questions": count,
+        "total_time_seconds": elapsed_seconds,
+        **averages,
+        "metric_level": "document",
+        "ground_truth": "document id extracted from qid before the first '-'",
+        "prediction": "unique root document ids from retrieved_paths, in rank order",
+    }
+
+
 def main() -> None:
     import argparse
     import json
@@ -671,14 +765,21 @@ def main() -> None:
     parser.add_argument("--weights", type=float, nargs=3, default=(1 / 3, 1 / 3, 1 / 3))
     parser.add_argument("--graph", action="store_true")
     parser.add_argument("--infographic", default=None)
+    parser.add_argument(
+        "--save-candidate-details",
+        action="store_true",
+        help="Store large candidate_facts/candidate_paths fields for debugging.",
+    )
     args = parser.parse_args()
 
+    started_at = time.perf_counter()
     retriever = MyRetriever(cli_args=[
         "--run_mode", "infopathrag",
         "--target_dataset", "InfoVQA",
         "--run_name", args.run_name,
         "--force_overwrite", "True",
     ])
+    retriever._save_candidate_details = args.save_candidate_details
     if args.graph:
         value = (
             retriever.get_infographic_hierarchy(args.infographic)
@@ -687,9 +788,14 @@ def main() -> None:
         print(json.dumps(value, indent=2, ensure_ascii=False))
         return
 
-    for qid in retriever._questions_manager.get_qid_list():
+    qids = retriever._questions_manager.get_qid_list()
+    results = {}
+    print(f"[InfoPathRAG] Processing {len(qids):,} questions...", flush=True)
+    progress = tqdm(qids, desc="Retrieving InfoVQA", unit="question")
+    for qid in progress:
+        progress.set_postfix_str(f"qid={qid}", refresh=False)
         question = retriever._questions_manager.get_question_instance_by_qid(qid)
-        retriever.retrieve_infopathrag(
+        result = retriever.retrieve_infopathrag(
             qid=qid,
             query_vec=question.get_embedding(),
             candidate_strategy=args.candidate_strategy,
@@ -699,6 +805,23 @@ def main() -> None:
             tile_k=args.top_tile_k,
             top_fact_k=args.top_fact_k,
         )
+        results[str(qid)] = result
+    elapsed_seconds = time.perf_counter() - started_at
+    summary = _calculate_retrieval_summary(
+        results,
+        run_name=args.run_name,
+        algorithm="InfoPathRAG",
+        elapsed_seconds=elapsed_seconds,
+    )
+    summary_path = os.path.join(retriever._output_dir, "retrieval_summary.json")
+    with open(summary_path, "w", encoding="utf-8") as summary_file:
+        json.dump(summary, summary_file, indent=2, ensure_ascii=False)
+    print(
+        f"[InfoPathRAG] Completed {len(qids):,} questions. "
+        f"Results: {retriever._output_dir}\n"
+        f"[InfoPathRAG] Summary: {summary_path}",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

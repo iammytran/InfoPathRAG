@@ -47,12 +47,28 @@ class VQABenchmarkRetrievalAccuracyEvaluator(RetrievalAccuracyEvaluator):
         
         qid_to_retrieved_components = self._retrieval_results.pack_qid_to_component()
         qrels = self._labeled_benchmark.pack_qrels_for_vqa()
-    
-        retrieval_accuracy = eval_mrr(qrels, qid_to_retrieved_components, cutoff = 10)
+
+
+        # print(f"qid_to_retrieved_components: {qid_to_retrieved_components}")
+        # print(f"qrels: {qrels}")
+        recall_at_1 = eval_recall(
+            qrels, qid_to_retrieved_components, cutoff=1
+        )
+        recall_at_3 = eval_recall(
+            qrels, qid_to_retrieved_components, cutoff=3
+        )
+        mrr_at_3 = eval_mrr(
+            qrels, qid_to_retrieved_components, cutoff=3
+        )
+        mrr_at_10 = eval_mrr(
+            qrels, qid_to_retrieved_components, cutoff=10
+        )
         
         self._accuracy_dict = {
-            str(RetrievalMetric.PAGE_RECALL.value): eval_recall(qrels, qid_to_retrieved_components, cutoff = 3),
-            str(RetrievalMetric.MRR.value): retrieval_accuracy
+            str(RetrievalMetric.PAGE_RECALL_AT_1.value): recall_at_1,
+            str(RetrievalMetric.PAGE_RECALL.value): recall_at_3,
+            str(RetrievalMetric.MRR_AT_3.value): mrr_at_3,
+            str(RetrievalMetric.MRR.value): mrr_at_10,
         }
         
         return
@@ -264,7 +280,7 @@ def evaluate_retrieval_accuracy(
     elif benchmark_type == BenchmarkType.MULTIMODALQA:
         if algorithm_name == AlgorithmName.OMG:
             target_class = OMGMMQABenchmarkRetrievalAccuracyEvaluator
-        elif algorithm_name == AlgorithmName.VISRAG:
+        elif algorithm_name in (AlgorithmName.VISRAG, AlgorithmName.INFOPATHRAG):
             target_class = VisRAGMMQABenchmarkRetrievalAccuracyEvaluator
         else:
             raise ValueError(f"Unknown algorithm name: {algorithm_name}")

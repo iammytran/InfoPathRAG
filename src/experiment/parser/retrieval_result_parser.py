@@ -263,6 +263,10 @@ def parse_retrieval_results(
             retrieval_parser = VisRAGMMQARetrievalResultParser(algorithm_name, data_type, qa_data_path, retrieval_result_path)
         elif data_type == BenchmarkType.VQA:
             retrieval_parser = VisRAGVQARetrievalResultParser(algorithm_name, data_type, qa_data_path, retrieval_result_path)
+
+    elif algorithm_name == AlgorithmName.INFOPATHRAG:
+        if data_type == BenchmarkType.VQA:
+            retrieval_parser = MYVQARetrievalResultParser(algorithm_name, data_type, qa_data_path, retrieval_result_path)
         
     else:
         raise ValueError(f"Unknown algorithm_name: {algorithm_name}")

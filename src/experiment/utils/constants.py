@@ -45,6 +45,7 @@ class BenchmarkType(Enum):
 class AlgorithmName(Enum):
     OMG = "LILaC"
     VISRAG = "VisRAG"
+    INFOPATHRAG = "InfoPathRAG"
     
 @unique
 @add_enum_utilities
@@ -55,7 +56,9 @@ class LabelType(Enum):
 @unique
 @add_enum_utilities
 class RetrievalMetric(Enum):
+    PAGE_RECALL_AT_1 = "Recall@1"
     MRR = "MRR@10"
+    MRR_AT_3 = "MRR@3"
     PAGE_RECALL = "Recall@3"
     COMPONENT_RECALL = "Component Recall"
     DOCUMENT_RECALL = "Document Recall"
@@ -76,6 +79,7 @@ class EndToEndMetric(Enum):
 class EndToEndMetric(Enum):
     F1 = "F1"
     EM = "EM"
+    ANLS = "ANLS"
     
     
 @unique
@@ -83,5 +87,3 @@ class EndToEndMetric(Enum):
 class ComponentIdIdx(Enum):
     DOC_ID = 0
     COMP_ID = 1
-
-

@@ -157,6 +157,13 @@ def benchmark_mode(args):
             
             retrieval_directory_name = setting["retrieval_directory"]
             retrieval_directory = os.path.join(working_directory, algorithm, benchmark, retrieval_directory_name)
+
+            if not os.path.isdir(retrieval_directory):
+                print(
+                    f"Skipping {algorithm}/{benchmark}: "
+                    f"retrieval directory does not exist: {retrieval_directory}"
+                )
+                continue
             
             run_names = os.listdir(retrieval_directory)
             run_names.sort()
@@ -164,13 +171,23 @@ def benchmark_mode(args):
                 run_dir = os.path.join(retrieval_directory, run_name)
                 if not os.path.isdir(run_dir): continue
                 
-                # Find the file with .json extension under the directory
-                for retrieval_filename in os.listdir(run_dir):
-                    if retrieval_filename.endswith(".json") or retrieval_filename.endswith(".jsonl"):
-                        retrieval_result_path = os.path.join(run_dir, retrieval_filename)
-                        break
+                # Prefer per-query JSONL; retrieval_summary.json is metadata,
+                # not a retrieval result file.
+                retrieval_files = sorted(
+                    filename for filename in os.listdir(run_dir)
+                    if filename.endswith(".jsonl")
+                )
+                if not retrieval_files:
+                    retrieval_files = sorted(
+                        filename for filename in os.listdir(run_dir)
+                        if filename.endswith(".json")
+                        and filename != "retrieval_summary.json"
+                    )
+                if retrieval_files:
+                    retrieval_filename = retrieval_files[0]
+                    retrieval_result_path = os.path.join(run_dir, retrieval_filename)
                 else:
-                    print(f"No .json file found in {run_dir}")
+                    print(f"No retrieval result file found in {run_dir}")
                     continue
                 
                 print(f"Algorithm: {algorithm}")

@@ -47,14 +47,14 @@ RUN_CONFIG_PATH          = f"{REPO_ROOT}/config/retriever/retriever_config.yaml"
 
 class Retriever:
     
-    def __init__(self, config_path: str = RUN_CONFIG_PATH):
+    def __init__(self, config_path: str = RUN_CONFIG_PATH, cli_args=None):
         
         # 1) Load default config from YAML
         self._metadata_config = read_yaml(METADATA_CONFIG_PATH)
         default_config        = read_yaml(config_path)
         
         # 2) Parse command line arguments
-        args = parse_arguments()
+        args = parse_arguments(cli_args)
         
         print(args)
         
@@ -116,7 +116,8 @@ class Retriever:
         
         # Current run
         self._run_name              = self._run_config["run_name"]
-        self._output_dir            = os.path.join(self._root_path, self._metadata_config["subpath"]["algorithm_results"], self._metadata_config["algorithm_name"], self._target_dataset, "retrieval", self._run_config["run_name"])
+        algorithm_name = self._output_algorithm_name()
+        self._output_dir            = os.path.join(self._root_path, self._metadata_config["subpath"]["algorithm_results"], algorithm_name, self._target_dataset, "retrieval", self._run_config["run_name"])
         ensure_output_dir(self._output_dir, force_overwrite = self._run_config["force_overwrite"])
         
         self._run_function_mode     = self._run_config["run_mode"]
@@ -125,8 +126,12 @@ class Retriever:
         # Query embedding
         self.initaite_questions_manager()
         
-        # Embedding indexer
-        self.initiate_indexers()
+        # InfoPathRAG builds its own root/tile/fact indexes in MyRetriever.
+        # Avoid loading the generic top/low indexes a second time.
+        if self._run_function_mode == "infopathrag":
+            self.level_to_indexer = {}
+        else:
+            self.initiate_indexers()
         
         # Initiate multimodal graph
         self.initiate_graph()
@@ -140,6 +145,9 @@ class Retriever:
             self._subindexer_low = None
                 
         return
+
+    def _output_algorithm_name(self) -> str:
+        return self._metadata_config["algorithm_name"]
         
         
 
@@ -305,6 +313,9 @@ class Retriever:
                 self._beam_width = self._run_config["parameters"]["beam_width"]
                 self._num_iterations = self._run_config["parameters"]["num_iterations"]
                 self.retrieve_iterative_late_interaction(qid, question_embedding, subquery_embeddings)
+
+            elif self._run_function_mode == "infopathrag":
+                self._retrieve_for_run(qid, question_embedding, subquery_embeddings)
             
         run_config_path = os.path.join(self._output_dir, "run_config.yaml")
         with open(run_config_path, "w") as f:
@@ -1108,7 +1119,7 @@ def main():
     retriever.run()
     return
     
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(argv=None) -> argparse.Namespace:
     """
     Parse command-line arguments, each one overriding the default YAML config.
     """
@@ -1126,9 +1137,16 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--run_mode",
         type=str,
-        choices=["single_knn", "single_topdown", "decomposed_topdown", "late_interaction", "iterative_late_interaction"],
+        choices=[
+            "single_knn",
+            "single_topdown",
+            "decomposed_topdown",
+            "late_interaction",
+            "iterative_late_interaction",
+            "infopathrag",
+        ],
         default=None,
-        help="One of single_knn, single_topdown, decomposed_topdown, late_interaction."
+        help="One of single_knn, single_topdown, decomposed_topdown, late_interaction, infopathrag."
     )
     parser.add_argument(
         "--target_dataset",
@@ -1166,18 +1184,21 @@ def parse_arguments() -> argparse.Namespace:
     
     parser.add_argument(
         "--lowlevel_text",
-        type = str,
-        default = None,        
+        type=str,
+        default=None,
+        help="Override the low-level text embedding artifact name."
     )
     parser.add_argument(
         "--lowlevel_table",
-        type = str,
-        default = None,        
+        type=str,
+        default=None,
+        help="Override the low-level table embedding artifact name."
     )
     parser.add_argument(
         "--lowlevel_image",
-        type = str,
-        default = None,        
+        type=str,
+        default=None,
+        help="Override the low-level image embedding artifact name."
     )
     
     parser.add_argument(
@@ -1201,7 +1222,7 @@ def parse_arguments() -> argparse.Namespace:
         help="Override for 'target_level' in config."
     )
     
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     return args
 

@@ -21,7 +21,7 @@ class MultimodalDocument:
     ):
         
         self.file_path = file_path
-        self.images_dir = images_dir,
+        self.images_dir = images_dir
         self.subimages_dir = subimages_dir
         self.image_summaries_dir = image_summaries_dir
         self.title: str = None
@@ -31,8 +31,12 @@ class MultimodalDocument:
         return
 
     def parse_json(self):
-        
         raw_json = read_json_or_jsonl(self.file_path)
+        self.parse_raw(raw_json)
+        return
+
+    def parse_raw(self, raw_json):
+        """Populate the document from an in-memory document object."""
         
         self.title = raw_json[ParsedWebKeywords.TITLE.value]
                 

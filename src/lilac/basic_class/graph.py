@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 from tqdm import tqdm
 import time
 import logging
@@ -76,6 +77,182 @@ class Graph:
         self._generate_intra_document_edges()
         self._generate_inter_document_edges()
         
+        return
+
+    def load_tile_manifest_for_infographic(
+        self,
+        manifest_path,
+        infographic,
+        facts_directory=None,
+    ):
+        """Load only one infographic from a tile manifest.
+
+        ``infographic`` may be the manifest ``id``, the original image
+        filename/path, its stem, or its zero-based index in the manifest.
+        """
+        return self.load_tile_manifest(
+            manifest_path,
+            facts_directory=facts_directory,
+            infographic=infographic,
+        )
+
+    def load_tile_manifest(
+        self,
+        manifest_path,
+        facts_directory=None,
+        infographic=None,
+    ):
+        """Load an image/tile/fact graph without creating parsed documents.
+
+        The manifest is the source of truth: ``i_1`` is the original
+        infographic, ``i_1_tNNNN`` are tiles, and ``..._fNNNN`` are facts.
+
+        When ``infographic`` is provided, only the matching infographic is
+        loaded. It may be its manifest ``id``, original filename/path, stem,
+        or zero-based index.
+        """
+        with open(manifest_path, "r", encoding="utf-8") as fh:
+            manifest = json.load(fh)
+        infographics = manifest["infographics"]
+        if infographic is not None:
+            if isinstance(infographic, int):
+                if infographic < 0 or infographic >= len(infographics):
+                    raise ValueError(
+                        f"Infographic index {infographic} is out of range "
+                        f"(0-{len(infographics) - 1})."
+                    )
+                infographics = [infographics[infographic]]
+            else:
+                requested = str(infographic)
+                matches = []
+                for candidate in infographics:
+                    original_filename = candidate["original"]["filename"]
+                    original_path = Path(original_filename)
+                    candidate_values = {
+                        str(candidate.get("id", "")),
+                        original_filename,
+                        os.path.basename(original_filename),
+                        original_path.stem,
+                    }
+                    if requested in candidate_values:
+                        matches.append(candidate)
+                if not matches:
+                    available = [
+                        candidate.get(
+                            "id",
+                            os.path.basename(candidate["original"]["filename"]),
+                        )
+                        for candidate in infographics
+                    ]
+                    raise ValueError(
+                        f"Infographic {requested!r} was not found in "
+                        f"{manifest_path}. Available infographics: {available}"
+                    )
+                infographics = matches
+
+        facts_directory = Path(facts_directory) if facts_directory else None
+        if (
+            facts_directory is not None
+            and not any(facts_directory.glob("*.json"))
+            and (facts_directory / "facts").exists()
+        ):
+            nested_facts_directory = facts_directory / "facts"
+            if nested_facts_directory.exists():
+                facts_directory = nested_facts_directory
+
+        # print(f"facts_directory: {facts_directory}")
+
+        self.filename_to_document.clear()
+        self.title_to_documents.clear()
+        self.intra_document_edges.clear()
+        self.inter_document_edges.clear()
+
+        for infographic in infographics:
+            original = infographic["original"]
+            filename = os.path.basename(original["filename"])
+            components = {
+                "i_1": {
+                    "filename": original["filename"],
+                    "caption": {"text": original.get("caption", "")},
+                }
+            }
+            hierarchy = {"infographic": {"components": ["i_1"]}}
+            fact_objects = {}
+            for tile in infographic["tiles"]:
+                # print(f"tile: {tile}")
+                tile_id = tile["component_id"]
+                components[tile_id] = {
+                    "filename": tile["filename"],
+                    "caption": {"text": tile.get("caption", "")},
+                }
+                hierarchy["infographic"][tile_id] = {"components": [tile_id]}
+                tile_facts = tile.get("facts", [])
+                # print(f"tile_facts")
+                if not tile_facts and facts_directory is not None:
+                    facts_path = facts_directory / f"{Path(tile['filename']).stem}.json"
+                    # print(f"facts_path: {facts_path}")
+                    if facts_path.exists():
+                        with facts_path.open(encoding="utf-8") as fact_fh:
+                            fact_data = json.load(fact_fh)
+                        tile_facts = fact_data.get("facts", [])
+                for index, fact in enumerate(tile_facts):
+                    if not isinstance(fact, dict):
+                        fact = {"fact": str(fact)}
+                    fact_id = f"{tile_id}_f{index:04d}"
+                    fact_objects[fact_id] = {
+                        "text": fact.get("fact", fact.get("text", "")),
+                        "edges": [],
+                    }
+                    hierarchy["infographic"][tile_id]["components"].append(fact_id)
+
+            raw_document = {
+                "title": Path(filename).stem,
+                "hierarchy": hierarchy,
+                "image": components,
+                "text": fact_objects,
+                "sentence": {},
+                "proposition": {},
+                "table": {},
+                "table_segment": {},
+                "subimage": {},
+            }
+            document = MultimodalDocument(
+                file_path=filename,
+                images_dir=self.images_dir,
+                subimages_dir=self.subimages_dir,
+                image_summaries_dir=self.summaries_dir,
+            )
+            document.parse_raw(raw_document)
+            self.filename_to_document[filename] = document
+            self.title_to_documents[document.get_title()] = document
+            component_map = document.get_id_to_component()
+            self.intra_document_edges[filename] = {"i_1": []}
+            # print(f"infographic: {infographic}")
+            for tile in infographic["tiles"]:
+                # print(f"tile: {tile}")
+                tile_id = tile["component_id"]
+                self.intra_document_edges[filename][tile_id] = []
+                # print(f"component_map: {component_map}")
+                if tile_id in component_map:
+                    self.intra_document_edges[filename]["i_1"].append(
+                        component_map[tile_id]
+                    )
+                tile_facts = tile.get("facts", [])
+                
+                if not tile_facts and facts_directory is not None:
+                    facts_path = facts_directory / f"{Path(tile['filename']).stem}.json"
+                    if facts_path.exists():
+                        with facts_path.open(encoding="utf-8") as fact_fh:
+                            tile_facts = json.load(fact_fh).get("facts", [])
+                # print(f"tile_facts: {tile_facts}")
+                for index, _ in enumerate(tile_facts):
+                    fact_id = f"{tile_id}_f{index:04d}"
+                    if fact_id in component_map:
+                        self.intra_document_edges[filename][tile_id].append(
+                            component_map[fact_id]
+                        )
+            self.inter_document_edges[filename] = {}
+
         return
 
 
@@ -348,7 +525,18 @@ class Graph:
         if component_id not in self.intra_document_edges[filename]:
             return []
 
-        child_component_instances = self.intra_document_edges[filename][component_id]
+        child_component_instances = list(
+            self.intra_document_edges[filename][component_id]
+        )
+        # Tile manifests may contain a third level (tile -> fact). Include
+        # descendants so late-interaction retrieval can score facts as well.
+        descendants = []
+        for child in child_component_instances:
+            child_id = child.get_id()
+            descendants.extend(
+                self.intra_document_edges[filename].get(child_id, [])
+            )
+        child_component_instances.extend(descendants)
         
         # starts with i
         # starts with p and ends with s
@@ -650,9 +838,9 @@ if __name__ == "__main__":
     # print(top_level_gcid_by_low_level_gcid(("31st_Sarasaviya_Awards.json", "t_2_s4")))
     
     multimodal_documents_dir    = f"{REPO_ROOT}/datasets/InfoVQA/parsed_documents/dev"
-    images_dir                  = f"{REPO_ROOT}/datasets/InfoVQA/image_components/dev"
-    subimages_dir               = f"{REPO_ROOT}/artifacts/InfoVQA/image_components_sub/dev"
-    summaries_dir               = f"{REPO_ROOT}/artifacts/InfoVQA/image_summaries/dev"
+    images_dir                  = f"{REPO_ROOT}/datasets/InfoVQA/image_components/test"
+    subimages_dir               = f"{REPO_ROOT}/artifacts/InfoVQA/image_components_sub/test"
+    summaries_dir               = f"{REPO_ROOT}/artifacts/InfoVQA/image_summaries/test"
     
     graph = Graph(
         multimodal_documents_directory  = multimodal_documents_dir,
@@ -660,8 +848,27 @@ if __name__ == "__main__":
         subimages_directory             = subimages_dir,
         summaries_directory             = summaries_dir
     )
-    graph.parse_document('10002.json')
+    # graph.parse_document('10002.json')
 
+    
+    tile_manifest = f"{REPO_ROOT}/artifacts/InfoVQA/facts_each_tile/manifest.json"
+    facts_directory = f"{REPO_ROOT}/artifacts/InfoVQA/facts_each_tile"
+    target_infographic = "10022.jpeg"
+
+    graph.load_tile_manifest(
+        tile_manifest,
+        facts_directory=facts_directory,
+        infographic=target_infographic,
+    )
+
+    print("Loaded documents:", list(graph.filename_to_document))
+    for filename, edges in graph.intra_document_edges.items():
+        print(f"\nDocument: {filename}")
+        for component_id, children in edges.items():
+            print(
+                f"  {component_id} -> "
+                f"{[child.get_id() for child in children]}"
+            )
 
     
     pass

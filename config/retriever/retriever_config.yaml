@@ -3,16 +3,18 @@
 
 run_name: default
 
-run_mode: iterative_late_interaction
+# run_mode: iterative_late_interaction
 # run_mode: late_interaction
 # run_mode: single_knn
 # run_mode: single_topdown
+# run_mode: tree_traversal
+run_mode: mcts
 
 # target_dataset: InfoVQA
 # target_dataset: SlideVQA
 # target_dataset: MP-DocVQA
 # target_dataset: MMCoQA
-target_dataset: MultimodalQA
+target_dataset: InfoVQA
 
 embedding_model: MM-Embed
 # embedding_model: UniME
@@ -26,7 +28,8 @@ parameters:
   
   target_level: top
 
-  top_k: 100
+  top_k: 300
+  tree_traversal_top_k: 100
 
 force_overwrite: false
 
@@ -38,7 +41,7 @@ top_level_embeddings:
   gpu_num: -1   # FAISS index device: -1=CPU, >=0=GPU ordinal (needs faiss-gpu)
 
 low_level_embeddings:
-  text: sentence
+  text: tile_fact
   table: table_segment
   image: subimage
   gpu_num: -1

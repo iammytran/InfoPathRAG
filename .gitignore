@@ -70,4 +70,6 @@ models/*/
 
 datasets/InfoVQA/parsed_documents
 
+datasets/InfoVQA/tiles
+
 debug/

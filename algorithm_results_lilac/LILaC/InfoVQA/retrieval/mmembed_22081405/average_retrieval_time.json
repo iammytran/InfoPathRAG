@@ -1,0 +1,11 @@
+{
+  "input_file": "/workspace/InfoPathRAG/algorithm_results_lilac/LILaC/InfoVQA/retrieval/mmembed_22081405/mmembed_22081405.jsonl",
+  "num_records": 718,
+  "num_records_with_retrieval_time": 718,
+  "time_field_counts": {
+    "retrieval_time(ms)": 718
+  },
+  "average_retrieval_time_ms": 31.895502170153524,
+  "min_retrieval_time_ms": 27.09003956988454,
+  "max_retrieval_time_ms": 143.82167113944888
+}

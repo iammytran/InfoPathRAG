@@ -235,7 +235,7 @@ def _run(
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     variant_final_k = {
-        variant:70 if variant == "flat_facts" else args.final_k
+        variant: args.final_k
         for variant in variants
     }
     if base_results is None:
@@ -265,7 +265,6 @@ def _run(
                         else "fact_only"
                     ),
                     root_k=args.root_k, tile_k=args.tile_k,
-                    top_entry_k=getattr(args, "top_entry_k", 70),
                     top_fact_k=variant_final_k[variant],
                     path_weights=variant_weights,
                     normalization=args.normalization,
@@ -373,7 +372,6 @@ def main():
     ))
     parser.add_argument("--root-k", type=int, default=100)
     parser.add_argument("--tile-k", type=int, default=100)
-    parser.add_argument("--top-entry-k", type=int, default=70)
     parser.add_argument("--final-k", type=int, default=10)
     parser.add_argument("--normalization", choices=("raw", "query_zscore"), default="raw")
     parser.add_argument("--missing-path-policy", choices=("error", "skip"), default="error")

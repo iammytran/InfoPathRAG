@@ -42,7 +42,7 @@ def _visible_gpu_ids() -> List[int]:
 
 def _worker(
     gpu_id: int,
-    slice_: List[Tuple[str, str]],
+    slice_: List[Tuple[str | List[str], str, str]],
     prompt: str,
     max_tokens: int,
     show_progress: bool,
@@ -60,13 +60,14 @@ def _worker(
     
     # Ép PyTorch không lưu Gradient (Tiết kiệm VRAM tối đa)
     with torch.no_grad():
-        for i, (img_path, out_path) in enumerate(iterator):
+        for i, (img_path, out_path, item_prompt) in enumerate(iterator):
             out_p = Path(out_path)
             if out_p.exists():
                 continue
             try:
-                obj = {"text": prompt, "images": [str(img_path)]}
-                result = model.infer([obj], batch_size=1, max_tokens=max_tokens)
+                images = img_path if isinstance(img_path, list) else [img_path]
+                obj = {"text": item_prompt, "images": [str(path) for path in images]}
+                result = model.infer([obj], batch_size=4, max_tokens=max_tokens)
                 text = (result[0] if result else "").strip()
                 out_p.parent.mkdir(parents=True, exist_ok=True)
                 tmp_path = out_p.with_suffix(out_p.suffix + ".tmp")
@@ -85,19 +86,20 @@ def _worker(
                     gc.collect()
 
 def caption_images(
-    image_paths: List[str],
+    image_paths: List[str | List[str]],
     output_paths: List[str],
     *,
     prompt: str = "Generate a summary of the given image. Include all the texts within the image.",
     max_tokens: int = 2048,
     num_gpus: int | None = None,
     show_progress: bool = True,
+    prompts: List[str] | None = None,
 ) -> None:
     """Caption a list of images with Qwen2.5-VL, sharded across visible GPUs.
 
     Args
     ----
-    image_paths   : input .png/.jpg paths, parallel to output_paths
+    image_paths   : paths, or ordered image-path lists, parallel to output_paths
     output_paths  : where to write each image's .txt result
     prompt        : Qwen-VL text prompt; default is the page-summary prompt
     max_tokens    : per-output token cap
@@ -110,9 +112,12 @@ def caption_images(
     """
     assert len(image_paths) == len(output_paths), "parallel lists required"
 
+    if prompts is not None and len(prompts) != len(image_paths):
+        raise ValueError("prompts must be parallel to image_paths")
+    prompt_values = prompts or [prompt] * len(image_paths)
     todo = [
-        (img, out)
-        for img, out in zip(image_paths, output_paths)
+        (img, out, item_prompt)
+        for img, out, item_prompt in zip(image_paths, output_paths, prompt_values)
         if not Path(out).exists()
     ]
     if not todo:

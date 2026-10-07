@@ -23,6 +23,8 @@ Return a SHORT answer to the question using the given evidences, using f_answers
 
 
 
+
+
 DEMONSTRATION_PROMPT = """
 /*
 [Table]
@@ -111,9 +113,34 @@ Explanation = The South Asia passage identifies Afghanistan as part of the subco
 
 
 """
+INSTRUCTION_PROMPT_PATH = """
+You are an expert multimodal reasoning assistant specialized in analyzing infographics. 
+You will be provided with exactly one retrieved path from an infographic document, consisting of:
+1. Original image: The complete infographic image.
+2. Tile: A spatial tile cropped from the original image.
+3. Original image summary: A textual summary of the complete infographic.
+4. Fact: An extracted atomic fact associated with the tile.
 
+Your task is to analyze this single tile-fact path and answer the user's question.
+- Use the original image and tile image for visual context, the original-image summary for document-level context, and the fact for precise textual evidence.
+- Treat the original-image summary as supporting context, not as a replacement for the retrieved fact.
+- Do not infer evidence from other paths or from an unseen infographic.
+- Avoid hallucinations and stick strictly to the facts presented within the path.
+- Provide a brief explanation of how the path leads to the answer, and output the final answer using the format: f_answers(["your_answer"]).
+"""
 
+DEMONSTRATION_PROMPT_PATH = """
+/*
+[Path]
+Original image (Image 1): Complete infographic showing multiple economic sectors.
+Tile (Image 2): Spatial tile focusing on the regional economic performance section.
+Original image summary: The full infographic compares the revenue of multiple economic sectors in 2025.
+Fact: The infographic states that the technology sector generated 450 million USD in revenue in 2025.
+*/
 
+Question = How much revenue did the technology sector generate in 2025 according to the infographic?
+Explanation = The original image and its summary provide infographic context, while the associated fact explicitly states that the technology sector generated 450 million USD in 2025. Therefore, the answer is: f_answers(["450 million USD"])
+"""
 
 
 PAGE_PROMPT = """

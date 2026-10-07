@@ -63,6 +63,8 @@ for EMB in "${EMBEDDERS[@]}"; do
             --target_dataset "$DS" \
             --retrieval_results_path "$RETRIEVAL" \
             --num_components "$(num_components "$DS")" \
+            --num_paths "$(num_components "$DS")" \
+            --use_retrieved_paths \
             --num_gpus 4 \
             --force_overwrite True \
             "${EXTRA[@]}"

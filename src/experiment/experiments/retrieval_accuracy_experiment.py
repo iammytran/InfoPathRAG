@@ -158,20 +158,21 @@ def benchmark_mode(args):
             retrieval_directory_name = setting["retrieval_directory"]
             retrieval_directory = os.path.join(working_directory, algorithm, benchmark, retrieval_directory_name)
             
+            if not os.path.isdir(retrieval_directory):
+                print(f"Skipping {algorithm}/{benchmark}: directory not found: {retrieval_directory}")
+                continue
+
             run_names = os.listdir(retrieval_directory)
             run_names.sort()
             for run_name in run_names:
                 run_dir = os.path.join(retrieval_directory, run_name)
                 if not os.path.isdir(run_dir): continue
                 
-                # Find the file with .json extension under the directory
-                for retrieval_filename in os.listdir(run_dir):
-                    if retrieval_filename.endswith(".json") or retrieval_filename.endswith(".jsonl"):
-                        retrieval_result_path = os.path.join(run_dir, retrieval_filename)
-                        break
-                else:
-                    print(f"No .json file found in {run_dir}")
+                retrieval_result_path = find_retrieval_result_path(run_dir)
+                if retrieval_result_path is None:
+                    print(f"No retrieval result file found in {run_dir}")
                     continue
+                retrieval_filename = os.path.basename(retrieval_result_path)
                 
                 print(f"Algorithm: {algorithm}")
                 print(f"Benchmark: {benchmark}")
@@ -198,12 +199,40 @@ def benchmark_mode(args):
 
 
 def accuracy_dict_to_list_list(accuracy_dict):
-    columns = list(accuracy_dict.keys())
-    row = []
-    for column in columns:
-        row.append(accuracy_dict[column])
+    preferred_order = (
+        RetrievalMetric.RECALL_AT_1.value,
+        RetrievalMetric.PAGE_RECALL.value,
+        RetrievalMetric.MRR_AT_3.value,
+        RetrievalMetric.MRR.value,
+    )
+    columns = [
+        column for column in preferred_order if column in accuracy_dict
+    ]
+    columns.extend(column for column in accuracy_dict if column not in columns)
+    row = [accuracy_dict[column] for column in columns]
         
     return [columns, row]
+
+
+def find_retrieval_result_path(run_dir):
+    """Return the retrieval result file, preferring JSONL over summaries."""
+    filenames = sorted(
+        filename
+        for filename in os.listdir(run_dir)
+        if filename.endswith(".jsonl")
+    )
+    if filenames:
+        return os.path.join(run_dir, filenames[0])
+
+    filenames = sorted(
+        filename
+        for filename in os.listdir(run_dir)
+        if filename.endswith(".json")
+        and filename != "retrieval_summary.json"
+    )
+    if filenames:
+        return os.path.join(run_dir, filenames[0])
+    return None
 
 
 def generate_error_accuracy_dict():

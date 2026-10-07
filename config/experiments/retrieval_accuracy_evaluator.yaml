@@ -65,3 +65,9 @@ Algorithms:
       run_name: "mmembed_default_2606_3.jsonl"
       label_type: "page"
       k : 10
+
+  InfoPathRAG:
+    InfoVQA:
+      retrieval_directory: "retrieval"
+      label_type: "page"
+      k : 10

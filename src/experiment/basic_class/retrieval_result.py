@@ -7,11 +7,13 @@ class SingleRetrievalResult:
         # modality is Modality or None
         qid: str,
         time_dict: dict[str, float],
-        retrieved_components: list[tuple[str, str]]        
+        retrieved_components: list[tuple[str, str]],
+        retrieved_paths: list[dict] | None = None,
     ):
         self.qid = qid
         self.time_dict = time_dict
         self.retrieved_components = retrieved_components
+        self.retrieved_paths = retrieved_paths or []
     
         return
     
@@ -23,6 +25,9 @@ class SingleRetrievalResult:
     
     def get_retrieved_components(self):
         return self.retrieved_components
+
+    def get_retrieved_paths(self):
+        return self.retrieved_paths
 
     
 
